@@ -258,10 +258,11 @@ static void __rcg_clk_enable_reg(struct rcg_clk *rcg)
 	u32 reg_val;
 	void __iomem *const reg = rcg->b.ctl_reg;
 
-	WARN(rcg->current_freq == &rcg_dummy_freq,
-		"Attempting to enable %s before setting its rate. "
-		"Set the rate first!\n", rcg->c.dbg_name);
-
+	/*
+	 * Program the NS register, if applicable. NS registers are not
+	 * set in the set_rate path because power can be saved by deferring
+	 * the selection of a clocked source until the clock is enabled.
+	 */
 	if (rcg->ns_mask) {
 		reg_val = readl_relaxed(rcg->ns_reg);
 		reg_val &= ~(rcg->ns_mask);
@@ -340,6 +341,19 @@ static void __rcg_clk_disable_reg(struct rcg_clk *rcg)
 	}
 }
 
+static int rcg_clk_prepare(struct clk *c)
+{
+	struct rcg_clk *rcg = to_rcg_clk(c);
+
+	WARN(rcg->current_freq == &rcg_dummy_freq,
+		"Attempting to prepare %s before setting its rate. "
+		"Set the rate first!\n", rcg->c.dbg_name);
+	rcg->prepared = true;
+
+	return 0;
+}
+
+/* Enable a rate-settable clock. */
 static int rcg_clk_enable(struct clk *c)
 {
 	unsigned long flags;
@@ -364,6 +378,15 @@ static void rcg_clk_disable(struct clk *c)
 	spin_unlock_irqrestore(&local_clock_reg_lock, flags);
 }
 
+static void rcg_clk_unprepare(struct clk *c)
+{
+	struct rcg_clk *rcg = to_rcg_clk(c);
+	rcg->prepared = false;
+}
+
+/*
+ * Frequency-related functions
+ */
 
 static int rcg_clk_set_rate(struct clk *c, unsigned long rate)
 {
@@ -371,6 +394,7 @@ static int rcg_clk_set_rate(struct clk *c, unsigned long rate)
 	struct clk_freq_tbl *nf, *cf;
 	struct clk *chld;
 	int rc = 0;
+	unsigned long flags;
 
 	for (nf = rcg->freq_tbl; nf->freq_hz != FREQ_END
 			&& nf->freq_hz != rate; nf++)
@@ -381,11 +405,22 @@ static int rcg_clk_set_rate(struct clk *c, unsigned long rate)
 
 	cf = rcg->current_freq;
 
-	if (rcg->enabled) {
-		
-		rc = clk_enable(nf->src_clk);
+	/* Enable source clock dependency for the new frequency */
+	if (rcg->prepared) {
+		rc = clk_prepare(nf->src_clk);
 		if (rc)
 			return rc;
+
+	}
+
+	spin_lock_irqsave(&c->lock, flags);
+	if (rcg->enabled) {
+		rc = clk_enable(nf->src_clk);
+		if (rc) {
+			spin_unlock_irqrestore(&c->lock, flags);
+			clk_unprepare(nf->src_clk);
+			return rc;
+		}
 	}
 
 	spin_lock(&local_clock_reg_lock);
@@ -425,6 +460,10 @@ static int rcg_clk_set_rate(struct clk *c, unsigned long rate)
 	
 	if (rcg->enabled)
 		clk_disable(cf->src_clk);
+	spin_unlock_irqrestore(&c->lock, flags);
+
+	if (rcg->prepared)
+		clk_unprepare(cf->src_clk);
 
 	return rc;
 }
@@ -721,8 +760,10 @@ static int rcg_clk_reset(struct clk *c, enum clk_reset_action action)
 }
 
 struct clk_ops clk_ops_rcg = {
+	.prepare = rcg_clk_prepare,
 	.enable = rcg_clk_enable,
 	.disable = rcg_clk_disable,
+	.unprepare = rcg_clk_unprepare,
 	.enable_hwcg = rcg_clk_enable_hwcg,
 	.disable_hwcg = rcg_clk_disable_hwcg,
 	.in_hwcg_mode = rcg_clk_in_hwcg_mode,
