@@ -32,7 +32,8 @@ struct handoff_clk {
 };
 static LIST_HEAD(handoff_list);
 
-static int find_vdd_level(struct clk *clk, unsigned long rate)
+/* Find the voltage level required for a given rate. */
+int find_vdd_level(struct clk *clk, unsigned long rate)
 {
 	int level;
 
