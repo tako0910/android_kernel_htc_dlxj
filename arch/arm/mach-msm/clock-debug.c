@@ -55,8 +55,8 @@ static int clock_debug_measure_get(void *data, u64 *val)
 	struct clk *clock = data;
 	int ret, is_hw_gated;
 
-	
-	if (clock->flags & CLKFLAG_HWCG)
+	/* Check to see if the clock is in hardware gating mode */
+	if (clock->ops->in_hwcg_mode)
 		is_hw_gated = clock->ops->in_hwcg_mode(clock);
 	else
 		is_hw_gated = 0;
@@ -125,7 +125,10 @@ DEFINE_SIMPLE_ATTRIBUTE(clock_local_fops, clock_debug_local_get,
 static int clock_debug_hwcg_get(void *data, u64 *val)
 {
 	struct clk *clock = data;
-	*val = !!(clock->flags & CLKFLAG_HWCG);
+	if (clock->ops->in_hwcg_mode)
+		*val = !!clock->ops->in_hwcg_mode(clock);
+	else
+		*val = 0;
 	return 0;
 }
 
