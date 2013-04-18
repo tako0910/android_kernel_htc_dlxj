@@ -17,6 +17,7 @@
 #include "kgsl_pwrscale.h"
 #include "kgsl_device.h"
 #include "a2xx_reg.h"
+#include "kgsl_trace.h"
 
 struct msm_priv {
 	struct kgsl_device *device;
@@ -26,6 +27,7 @@ struct msm_priv {
 	struct msm_dcvs_idle idle_source;
 	struct msm_dcvs_freq freq_sink;
 	struct msm_dcvs_core_info *core_info;
+	int gpu_busy;
 };
 
 static int msm_idle_enable(struct msm_dcvs_idle *self,
@@ -48,6 +50,9 @@ static int msm_idle_enable(struct msm_dcvs_idle *self,
 	return 0;
 }
 
+/* Set the requested frequency if it is within 5MHz (delta) of a
+ * supported frequency.
+ */
 static int msm_set_freq(struct msm_dcvs_freq *self,
 						unsigned int freq)
 {
@@ -57,7 +62,7 @@ static int msm_set_freq(struct msm_dcvs_freq *self,
 	struct kgsl_device *device = priv->device;
 	struct kgsl_pwrctrl *pwr = &device->pwrctrl;
 
-	
+	/* msm_dcvs manager uses frequencies in kHz */
 	freq *= 1000;
 	for (i = 0; i < pwr->num_pwrlevels; i++)
 		if (abs(pwr->pwrlevels[i].gpu_freq - freq) < delta)
@@ -70,7 +75,7 @@ static int msm_set_freq(struct msm_dcvs_freq *self,
 	priv->cur_freq = pwr->pwrlevels[pwr->active_pwrlevel].gpu_freq;
 	mutex_unlock(&device->mutex);
 
-	
+	/* return current frequency in kHz */
 	return priv->cur_freq / 1000;
 }
 
@@ -78,7 +83,7 @@ static unsigned int msm_get_freq(struct msm_dcvs_freq *self)
 {
 	struct msm_priv *priv = container_of(self, struct msm_priv,
 								freq_sink);
-	
+	/* return current frequency in kHz */
 	return priv->cur_freq / 1000;
 }
 
@@ -86,29 +91,40 @@ static void msm_busy(struct kgsl_device *device,
 			struct kgsl_pwrscale *pwrscale)
 {
 	struct msm_priv *priv = pwrscale->priv;
-	if (priv->enabled)
+	if (priv->enabled && !priv->gpu_busy) {
 		msm_dcvs_idle(priv->handle, MSM_DCVS_IDLE_EXIT, 0);
+		trace_kgsl_mpdcvs(device, 1);
+		priv->gpu_busy = 1;
+	}
 	return;
 }
 
 static void msm_idle(struct kgsl_device *device,
-			struct kgsl_pwrscale *pwrscale)
+		struct kgsl_pwrscale *pwrscale, unsigned int ignore_idle)
 {
 	struct msm_priv *priv = pwrscale->priv;
-	unsigned int rb_rptr, rb_wptr;
-	kgsl_regread(device, REG_CP_RB_RPTR, &rb_rptr);
-	kgsl_regread(device, REG_CP_RB_WPTR, &rb_wptr);
 
-	if (priv->enabled && (rb_rptr == rb_wptr))
-		msm_dcvs_idle(priv->handle, MSM_DCVS_IDLE_ENTER, 0);
-
+	if (priv->enabled && priv->gpu_busy)
+		if (device->ftbl->isidle(device)) {
+			msm_dcvs_idle(priv->handle, MSM_DCVS_IDLE_ENTER, 0);
+			trace_kgsl_mpdcvs(device, 0);
+			priv->gpu_busy = 0;
+		}
 	return;
 }
 
 static void msm_sleep(struct kgsl_device *device,
 			struct kgsl_pwrscale *pwrscale)
 {
-	
+	struct msm_priv *priv = pwrscale->priv;
+
+	if (priv->enabled && priv->gpu_busy) {
+		msm_dcvs_idle(priv->handle, MSM_DCVS_IDLE_ENTER, 0);
+		trace_kgsl_mpdcvs(device, 0);
+		priv->gpu_busy = 0;
+	}
+
+	return;
 }
 
 static int msm_init(struct kgsl_device *device,
@@ -129,7 +145,7 @@ static int msm_init(struct kgsl_device *device,
 
 	priv->core_info = pdata->core_info;
 	tbl = priv->core_info->freq_tbl;
-	
+	/* Fill in frequency table from low to high, reversing order. */
 	low_level = pwr->num_pwrlevels - KGSL_PWRLEVEL_LAST_OFFSET;
 	for (i = 0; i <= low_level; i++)
 		tbl[i].freq =
@@ -156,10 +172,10 @@ static int msm_init(struct kgsl_device *device,
 	ret = msm_dcvs_freq_sink_register(&priv->freq_sink);
 	if (ret >= 0) {
 		if (device->ftbl->isidle(device)) {
-			device->pwrscale.gpu_busy = 0;
+			priv->gpu_busy = 0;
 			msm_dcvs_idle(priv->handle, MSM_DCVS_IDLE_ENTER, 0);
 		} else {
-			device->pwrscale.gpu_busy = 1;
+			priv->gpu_busy = 1;
 		}
 		return 0;
 	}

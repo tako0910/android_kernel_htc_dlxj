@@ -5130,7 +5130,7 @@ static void __init deluxe_j_cdp_init(void)
 #ifdef CONFIG_FB_MSM
 	msm_rotator_update_bus_vectors(1920, 1080);
 	deluxe_j_init_fb();
-	deluxe_j_init_gpu();
+	apq8064_init_gpu();
 #endif
         platform_add_devices(apq8064_footswitch, apq8064_num_footswitch);
 #ifdef CONFIG_MSM_CAMERA

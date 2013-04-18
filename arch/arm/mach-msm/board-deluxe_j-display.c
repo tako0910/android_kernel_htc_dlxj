@@ -837,7 +837,9 @@ void __init deluxe_j_mdp_writeback(struct memtype_reserve* reserve_table)
 		mdp_pdata.ov1_wb_size;
 #endif
 }
-static int first_init = 1;
+//static int first_init = 1;
+static int first_init_lcd = 1;
+static int first_init_display = 1;
 static bool dsi_power_on;
 static int mipi_dsi_panel_power(int on)
 {
@@ -888,7 +890,7 @@ static int mipi_dsi_panel_power(int on)
 	}
 
 	if (on) {
-		if (!first_init) {
+		if (!first_init_lcd) {
 			rc = regulator_enable(reg_lvs5);
 			if (rc) {
 				pr_err("enable lvs5 failed, rc=%d\n", rc);
@@ -973,12 +975,12 @@ static struct mipi_dsi_panel_platform_data *mipi_deluxe_j_pdata;
 
 static struct dsi_buf deluxe_j_panel_tx_buf;
 static struct dsi_buf deluxe_j_panel_rx_buf;
-static struct dsi_cmd_desc *video_on_cmds = NULL;
-static struct dsi_cmd_desc *display_on_cmds = NULL;
-static struct dsi_cmd_desc *display_off_cmds = NULL;
-static int video_on_cmds_count = 0;
-static int display_on_cmds_count = 0;
-static int display_off_cmds_count = 0;
+//static struct dsi_cmd_desc *video_on_cmds = NULL;
+//static struct dsi_cmd_desc *display_on_cmds = NULL;
+//static struct dsi_cmd_desc *display_off_cmds = NULL;
+//static int video_on_cmds_count = 0;
+//static int display_on_cmds_count = 0;
+//static int display_off_cmds_count = 0;
 static char enter_sleep[2] = {0x10, 0x00}; 
 static char exit_sleep[2] = {0x11, 0x00}; 
 static char display_off[2] = {0x28, 0x00}; 
@@ -1050,10 +1052,10 @@ static char BackLight_Control_6[8]= {
 static char Manufacture_Command_setting[4] = {0xD6, 0x01};
 static char nop[4] = {0x00, 0x00};
 static char CABC[2] = {0x55, 0x01};
-static char hsync_output[4] = {0xC3, 0x01, 0x00, 0x10};
-static char protect_on[4] = {0xB0, 0x03};
+//static char hsync_output[4] = {0xC3, 0x01, 0x00, 0x10};
+//static char protect_on[4] = {0xB0, 0x03};
 static char TE_OUT[4] = {0x35, 0x00};
-static char deep_standby_off[2] = {0xB1, 0x01};
+//static char deep_standby_off[2] = {0xB1, 0x01};
 
 static struct dsi_cmd_desc sharp_video_on_cmds[] = {
 	{DTYPE_GEN_LWRITE, 1, 0, 0, 0, sizeof(interface_setting_0), interface_setting_0},
@@ -1070,6 +1072,7 @@ static struct dsi_cmd_desc sharp_video_on_cmds[] = {
 	{DTYPE_DCS_WRITE, 1, 0, 0, 0, sizeof(exit_sleep), exit_sleep},
 };
 
+/*
 static struct dsi_cmd_desc sony_video_on_cmds[] = {
 	{DTYPE_GEN_LWRITE, 1, 0, 0, 0, sizeof(interface_setting_0), interface_setting_0},
 	{DTYPE_DCS_WRITE1, 1, 0, 0, 0, sizeof(nop), nop},
@@ -1087,6 +1090,7 @@ static struct dsi_cmd_desc sony_video_on_cmds[] = {
 	{DTYPE_DCS_WRITE1, 1, 0, 0, 0, sizeof(TE_OUT), TE_OUT},
 	{DTYPE_DCS_WRITE, 1, 0, 0, 0, sizeof(exit_sleep), exit_sleep},
 };
+*/
 
 static struct dsi_cmd_desc sharp_display_off_cmds[] = {
 	{DTYPE_DCS_LWRITE, 1, 0, 0, 20,
@@ -1095,6 +1099,7 @@ static struct dsi_cmd_desc sharp_display_off_cmds[] = {
 		sizeof(enter_sleep), enter_sleep}
 };
 
+/*
 static struct dsi_cmd_desc sony_display_off_cmds[] = {
 	{DTYPE_DCS_LWRITE, 1, 0, 0, 0, sizeof(display_off), display_off},
 	{DTYPE_DCS_LWRITE, 1, 0, 0, 48, sizeof(enter_sleep), enter_sleep},
@@ -1103,6 +1108,7 @@ static struct dsi_cmd_desc sony_display_off_cmds[] = {
 	{DTYPE_DCS_LWRITE, 1, 0, 0, 0, sizeof(nop), nop},
 	{DTYPE_GEN_LWRITE, 1, 0, 0, 0, sizeof(deep_standby_off), deep_standby_off},
 };
+*/
 
 #if 0
 static char manufacture_id[2] = {0x04, 0x00}; 
@@ -1141,14 +1147,16 @@ static int deluxe_j_lcd_on(struct platform_device *pdev)
 		return -EINVAL;
 
 	mipi  = &mfd->panel_info.mipi;
-	if (!first_init) {
+	if (!first_init_lcd) {
 		if (mipi->mode == DSI_VIDEO_MODE) {
-			mipi_dsi_cmds_tx(&deluxe_j_panel_tx_buf, video_on_cmds,
-				video_on_cmds_count);
+			mipi_dsi_cmds_tx(&deluxe_j_panel_tx_buf, sharp_video_on_cmds,
+				ARRAY_SIZE(sharp_video_on_cmds));
+
+				PR_DISP_INFO("%s\n", __func__);
 		}
 
 	}
-	first_init = 0;
+	first_init_lcd = 0;
 	
 
 	return 0;
@@ -1164,6 +1172,17 @@ static int deluxe_j_lcd_off(struct platform_device *pdev)
 		return -ENODEV;
 	if (mfd->key != MFD_KEY)
 		return -EINVAL;
+/*
+        cmdreq.cmds = sharp_display_off_cmds;
+        cmdreq.cmds_cnt = ARRAY_SIZE(sharp_display_off_cmds);
+        cmdreq.flags = CMD_REQ_COMMIT;
+        cmdreq.rlen = 0;
+        cmdreq.cb = NULL;
+
+        mipi_dsi_cmdlist_put(&cmdreq);
+*/
+
+        PR_DISP_INFO("%s\n", __func__);
 
 	resume_blk = 1;
 	return 0;
@@ -1180,20 +1199,23 @@ static int __devinit deluxe_j_lcd_probe(struct platform_device *pdev)
 	PR_DISP_INFO("%s\n", __func__);
 	return 0;
 }
+/*
 static void deluxe_j_display_on(struct msm_fb_data_type *mfd)
 {
-	
-	msleep(120);
+	if (! first_init_display) {
+		msleep(120);
 
-	cmdreq.cmds = display_on_cmds;
-	cmdreq.cmds_cnt = 1;
-	cmdreq.flags = CMD_REQ_COMMIT;
-	cmdreq.rlen = 0;
-	cmdreq.cb = NULL;
+		cmdreq.cmds = display_on_cmds;
+		cmdreq.cmds_cnt = 1;
+		cmdreq.flags = CMD_REQ_COMMIT;
+		cmdreq.rlen = 0;
+		cmdreq.cb = NULL;
 
-	mipi_dsi_cmdlist_put(&cmdreq);
+		mipi_dsi_cmdlist_put(&cmdreq);
 
-	PR_DISP_INFO("%s\n", __func__);
+		PR_DISP_INFO("%s\n", __func__);
+	}
+	first_init_display = 0;
 }
 
 static void deluxe_j_display_off(struct msm_fb_data_type *mfd)
@@ -1205,6 +1227,39 @@ static void deluxe_j_display_off(struct msm_fb_data_type *mfd)
 	cmdreq.cb = NULL;
 
 	mipi_dsi_cmdlist_put(&cmdreq);
+
+	PR_DISP_INFO("%s\n", __func__);
+}
+*/
+
+static void deluxe_j_display_on(struct msm_fb_data_type *mfd)
+{
+	if (! first_init_display) {
+		/* It needs 120ms when LP to HS for renesas */
+		msleep(120);
+
+		cmdreq.cmds = renesas_display_on_cmds;
+		cmdreq.cmds_cnt = ARRAY_SIZE(renesas_display_on_cmds);
+		cmdreq.flags = CMD_REQ_COMMIT;
+		cmdreq.rlen = 0;
+		cmdreq.cb = NULL;
+
+		mipi_dsi_cmdlist_put(&cmdreq);
+
+		PR_DISP_INFO("%s\n", __func__);
+	}
+	first_init_display = 0;
+}
+
+static void deluxe_j_display_off(struct msm_fb_data_type *mfd)
+{
+        cmdreq.cmds = sharp_display_off_cmds;
+        cmdreq.cmds_cnt = ARRAY_SIZE(sharp_display_off_cmds);
+        cmdreq.flags = CMD_REQ_COMMIT;
+        cmdreq.rlen = 0;
+        cmdreq.cb = NULL;
+
+        mipi_dsi_cmdlist_put(&cmdreq);
 
 	PR_DISP_INFO("%s\n", __func__);
 }
@@ -1272,6 +1327,7 @@ static void deluxe_j_set_backlight(struct msm_fb_data_type *mfd)
 			pr_err("i2c write fail\n");
 	}
 
+/*
 	cmdreq.cmds = (struct dsi_cmd_desc*)&renesas_cmd_backlight_cmds;
 	cmdreq.cmds_cnt = 1;
 	cmdreq.flags = CMD_REQ_COMMIT;
@@ -1279,6 +1335,8 @@ static void deluxe_j_set_backlight(struct msm_fb_data_type *mfd)
 	cmdreq.cb = NULL;
 
 	mipi_dsi_cmdlist_put(&cmdreq);
+*/
+	mipi_dsi_cmds_tx(&deluxe_j_panel_tx_buf, (struct dsi_cmd_desc*)&renesas_cmd_backlight_cmds, 1);
 
 	if ((mfd->bl_level) == 0) {
 		gpio_tlmm_config(GPIO_CFG(BL_HW_EN, 0, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA), GPIO_CFG_ENABLE);
@@ -1304,10 +1362,10 @@ static struct msm_fb_panel_data deluxe_j_panel_data = {
 	.display_off = deluxe_j_display_off,
 };
 
-static struct msm_panel_info pinfo;
+//static struct msm_panel_info pinfo;
 static int ch_used[3] = {0};
 
-static int mipi_deluxe_j_device_register(struct msm_panel_info *pinfo,
+int mipi_deluxe_j_device_register(struct msm_panel_info *pinfo,
 					u32 channel, u32 panel)
 {
 	struct platform_device *pdev = NULL;
@@ -1343,6 +1401,7 @@ err_device_put:
 	return ret;
 }
 
+/*
 static struct mipi_dsi_phy_ctrl dsi_video_mode_phy_db = {
 	
 	
@@ -1510,6 +1569,7 @@ static int __init mipi_video_sony_init(void)
 
 	return ret;
 }
+*/
 
 static const struct i2c_device_id pwm_i2c_id[] = {
 	{ "pwm_i2c", 0 },
@@ -1563,10 +1623,12 @@ static int __init deluxe_j_panel_init(void)
 {
 	int ret;
 
+/*
 	if(panel_type == PANEL_ID_NONE)	{
 		PR_DISP_INFO("%s panel ID = PANEL_ID_NONE\n", __func__);
 		return 0;
 	}
+*/
 
 	ret = i2c_add_driver(&pwm_i2c_driver);
 
@@ -1576,6 +1638,7 @@ static int __init deluxe_j_panel_init(void)
 	mipi_dsi_buf_alloc(&deluxe_j_panel_tx_buf, DSI_BUF_SIZE);
 	mipi_dsi_buf_alloc(&deluxe_j_panel_rx_buf, DSI_BUF_SIZE);
 
+/*
 	if (panel_type == PANEL_ID_DLXJ_SHARP_RENESAS) {
 		mipi_video_sharp_init();
 		PR_DISP_INFO("%s panel ID = PANEL_ID_DLXJ_SHARP_RENESAS\n", __func__);
@@ -1588,7 +1651,8 @@ static int __init deluxe_j_panel_init(void)
 	}
 
 	PR_DISP_INFO("%s\n", __func__);
+*/
 
 	return platform_driver_register(&this_driver);
 }
-device_initcall_sync(deluxe_j_panel_init);
+late_initcall(deluxe_j_panel_init);

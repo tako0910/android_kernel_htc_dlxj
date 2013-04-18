@@ -261,7 +261,7 @@ void deluxe_j_init_fb(void);
 void deluxe_j_allocate_fb_region(void);
 void deluxe_j_mdp_writeback(struct memtype_reserve *reserve_table);
 
-void deluxe_j_init_gpu(void);
+void apq8064_init_gpu(void);
 void deluxe_j_pm8xxx_gpio_mpp_init(void);
 void deluxe_j_usb_uart_switch(int nvbus);
 
