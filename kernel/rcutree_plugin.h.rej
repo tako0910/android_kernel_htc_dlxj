@@ -1,0 +1,47 @@
+--- kernel/rcutree_plugin.h
++++ kernel/rcutree_plugin.h
+@@ -947,7 +947,7 @@
+ /*
+  * Initialize preemptible RCU's per-CPU data.
+  */
+-static void __cpuinit rcu_preempt_init_percpu_data(int cpu)
++static void rcu_preempt_init_percpu_data(int cpu)
+ {
+ 	rcu_init_percpu_data(cpu, &rcu_preempt_state, 1);
+ }
+@@ -1190,7 +1190,7 @@
+  * Because preemptible RCU does not exist, there is no per-CPU
+  * data to initialize.
+  */
+-static void __cpuinit rcu_preempt_init_percpu_data(int cpu)
++static void rcu_preempt_init_percpu_data(int cpu)
+ {
+ }
+ 
+@@ -1447,7 +1447,7 @@
+  * already exist.  We only create this kthread for preemptible RCU.
+  * Returns zero if all is well, a negated errno otherwise.
+  */
+-static int __cpuinit rcu_spawn_one_boost_kthread(struct rcu_state *rsp,
++static int rcu_spawn_one_boost_kthread(struct rcu_state *rsp,
+ 						 struct rcu_node *rnp,
+ 						 int rnp_index)
+ {
+@@ -1679,7 +1679,7 @@
+  * rcu_cpu_kthread() will wait until it is fully online, and then do
+  * the binding.
+  */
+-static int __cpuinit rcu_spawn_one_cpu_kthread(int cpu)
++static int rcu_spawn_one_cpu_kthread(int cpu)
+ {
+ 	struct sched_param sp;
+ 	struct task_struct *t;
+@@ -1786,7 +1786,7 @@
+  * during runtime, with the main CPU-hotplug locks held.  So only
+  * one of these can be executing at a time.
+  */
+-static int __cpuinit rcu_spawn_one_node_kthread(struct rcu_state *rsp,
++static int rcu_spawn_one_node_kthread(struct rcu_state *rsp,
+ 						struct rcu_node *rnp)
+ {
+ 	unsigned long flags;
