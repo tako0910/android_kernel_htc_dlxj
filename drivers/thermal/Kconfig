@@ -61,7 +61,7 @@ config THERMAL_TSENS8974
 	  to set threshold temperature for both warm and cool and update
 	  thermal userspace client when a threshold is reached. Warm/Cool
 	  temperature thresholds can be set independently for each sensor.
-	  
+
 config THERMAL_PM8XXX
 	tristate "Qualcomm PMIC PM8xxx Temperature Alarm"
 	depends on THERMAL
@@ -91,4 +91,3 @@ config SPEAR_THERMAL
 	help
 	  Enable this to plug the SPEAr thermal sensor driver into the Linux
 	  thermal framework
-
