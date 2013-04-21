@@ -82,9 +82,6 @@ enum tsens_trip_type {
 #define TSENS_MIN_LIMIT_TH				0x0
 #define TSENS_MAX_LIMIT_TH				0xff
 
-#define TSENS_MIN_LIMIT_TEMP				-60
-#define TSENS_MAX_LIMIT_TEMP				120
-
 #define TSENS_S0_STATUS_ADDR			(MSM_CLK_CTL_BASE + 0x00003628)
 #define TSENS_STATUS_ADDR_OFFSET			2
 #define TSENS_SENSOR_STATUS_SIZE			4
@@ -163,9 +160,6 @@ struct tsens_tm_device {
 };
 
 struct tsens_tm_device *tmdev;
-static struct workqueue_struct *monitor_tsense_wq = NULL;
-struct delayed_work monitor_tsens_status_worker;
-static void monitor_tsens_status(struct work_struct *work);
 
 static int tsens_tz_code_to_degC(int adc_code, int sensor_num)
 {
@@ -593,55 +587,6 @@ static struct thermal_zone_device_ops tsens_thermal_zone_ops = {
 	.get_crit_temp = tsens_tz_get_crit_temp,
 	.notify = tsens_tz_notify,
 };
-static void monitor_tsens_status(struct work_struct *work)
-{
-	unsigned int i, j, cntl, threshold, int_status, config;
-	int code;
-	int enable = 0;
-	struct pm8xxx_adc_chan_result result;
-	int rc = -1;
-
-	cntl = readl_relaxed(TSENS_CNTL_ADDR);
-	threshold = readl_relaxed(TSENS_THRESHOLD_ADDR);
-	int_status = readl_relaxed(TSENS_INT_STATUS_ADDR);
-	config = readl_relaxed(TSENS_8960_CONFIG_ADDR);
-
-	pr_info("TSENS_CNTL_ADDR[0x%08X], TSENS_THRESHOLD_ADDR[0x%08X], TSENS_INT_STATUS_ADDR[0x%08X], TSENS_8960_CONFIG_ADDR[0x%08X]\n", cntl, threshold, int_status, config);
-
-	if (tmdev->hw_type == APQ_8064)
-		cntl &= (uint32_t) TSENS_8064_SENSORS_EN;
-	else
-		cntl &= (uint32_t) SENSORS_EN;
-	cntl >>= TSENS_SENSOR0_SHIFT;
-
-	for (i = 0; i < tmdev->tsens_num_sensor; i++) {
-		if (i < 5)
-			code = readl_relaxed(TSENS_S0_STATUS_ADDR
-				+ (i << TSENS_STATUS_ADDR_OFFSET));
-		else {
-			j = i-5;
-			code = readl_relaxed(TSENS_8064_S5_STATUS_ADDR
-				+ (j << TSENS_STATUS_ADDR_OFFSET));
-		}
-
-		enable = cntl & (0x1 << i);
-		if(enable > 0)
-			pr_info("Sensor %d = %d C\n", i, tsens_tz_code_to_degC(code, i));
-	}
-
-	if (tmdev->patherm0 > 0) {
-		rc = pm8xxx_adc_read(tmdev->patherm0, &result);
-		pr_info("pa_therm0 = %lld C\n", result.physical);
-	}
-	if (tmdev->patherm1 > 0) {
-		rc = pm8xxx_adc_read(tmdev->patherm1, &result);
-		pr_info("pa_therm1 = %lld C\n", result.physical);
-	}
-
-	if (monitor_tsense_wq) {
-		queue_delayed_work(monitor_tsense_wq, &monitor_tsens_status_worker, msecs_to_jiffies(60000));
-	}
-}
 
 static void notify_uspace_tsens_fn(struct work_struct *work)
 {
@@ -837,8 +782,6 @@ static void tsens_hw_init(void)
 {
 	unsigned int reg_cntl = 0, reg_cfg = 0, reg_thr = 0;
 	unsigned int reg_status_cntl = 0;
-	int tsens_min_limit_th = 0, tsens_max_limit_th = 0;
-	int i, sort_max = 0, sort_min = 0;
 
 	reg_cntl = readl_relaxed(TSENS_CNTL_ADDR);
 	writel_relaxed(reg_cntl | TSENS_SW_RST, TSENS_CNTL_ADDR);
@@ -857,27 +800,6 @@ static void tsens_hw_init(void)
 		reg_cfg = (reg_cfg & ~TSENS_8960_CONFIG_MASK) |
 			(TSENS_8960_CONFIG << TSENS_8960_CONFIG_SHIFT);
 		writel_relaxed(reg_cfg, TSENS_8960_CONFIG_ADDR);
-
-	if (tmdev->tsens_num_sensor) {
-		for (i = 0; i < tmdev->tsens_num_sensor; i++) {
-			if (tmdev->sensor[i].offset > tmdev->sensor[sort_max].offset)
-				sort_max = i;
-			else  if (tmdev->sensor[i].offset < tmdev->sensor[sort_min].offset)
-				sort_min = i;
-		}
-		
-		tsens_min_limit_th = tsens_tz_degC_to_code(TSENS_MIN_LIMIT_TEMP, sort_min);
-		tsens_max_limit_th = tsens_tz_degC_to_code(TSENS_MAX_LIMIT_TEMP, sort_max);
-
-		for (i = 0; i < tmdev->tsens_num_sensor; i++) {
-			pr_info("%s: sensor[%d] min_threshold %d, max_threshold %d\n",  __func__, i,
-				tsens_tz_code_to_degC(tsens_min_limit_th, i), tsens_tz_code_to_degC(tsens_max_limit_th,i));
-		}
-	}
-	else {
-		tsens_min_limit_th = TSENS_MIN_LIMIT_TH;
-		tsens_max_limit_th = TSENS_MAX_LIMIT_TH;
-	}
 
 	} else if (tmdev->hw_type == MSM_8660) {
 		reg_cntl |= TSENS_8660_SLP_CLK_ENA | TSENS_EN |
@@ -914,8 +836,8 @@ static void tsens_hw_init(void)
 
 	reg_thr |= (TSENS_LOWER_LIMIT_TH << TSENS_THRESHOLD_LOWER_LIMIT_SHIFT) |
 		(TSENS_UPPER_LIMIT_TH << TSENS_THRESHOLD_UPPER_LIMIT_SHIFT) |
-		(tsens_min_limit_th << TSENS_THRESHOLD_MIN_LIMIT_SHIFT) |
-		(tsens_max_limit_th << TSENS_THRESHOLD_MAX_LIMIT_SHIFT);
+		(TSENS_MIN_LIMIT_TH << TSENS_THRESHOLD_MIN_LIMIT_SHIFT) |
+		(TSENS_MAX_LIMIT_TH << TSENS_THRESHOLD_MAX_LIMIT_SHIFT);
 	writel_relaxed(reg_thr, TSENS_THRESHOLD_ADDR);
 }
 
@@ -1054,16 +976,6 @@ int msm_tsens_early_init(struct tsens_platform_data *pdata)
 		tsens_status_cntl_start = TSENS_STATUS_CNTL_OFFSET;
 
 	tsens_hw_init();
-
-	if (monitor_tsense_wq == NULL) {
-		
-		monitor_tsense_wq = create_workqueue("monitor_tsense_wq");
-		printk(KERN_INFO "Create monitor tsense workqueue(0x%x)...\n", (unsigned int)monitor_tsense_wq);
-	}
-	if (monitor_tsense_wq) {
-		INIT_DELAYED_WORK(&monitor_tsens_status_worker, monitor_tsens_status);
-		queue_delayed_work(monitor_tsense_wq, &monitor_tsens_status_worker, msecs_to_jiffies(0));
-	}
 
 	pr_debug("msm_tsens_early_init: done\n");
 
