@@ -1,0 +1,11 @@
+--- mm/vmstat.c
++++ mm/vmstat.c
+@@ -1164,7 +1164,7 @@
+  * Use the cpu notifier to insure that the thresholds are recalculated
+  * when necessary.
+  */
+-static int vmstat_cpuup_callback(struct notifier_block *nfb,
++static int __cpuinit vmstat_cpuup_callback(struct notifier_block *nfb,
+ 		unsigned long action,
+ 		void *hcpu)
+ {

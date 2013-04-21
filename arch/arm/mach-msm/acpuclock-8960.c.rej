@@ -1,0 +1,29 @@
+--- arch/arm/mach-msm/acpuclock-8960.c
++++ arch/arm/mach-msm/acpuclock-8960.c
+@@ -1451,7 +1451,7 @@
+ }
+ 
+ /* Initialize a HFPLL at a given rate and enable it. */
+-static void hfpll_init(struct scalable *sc, struct core_speed *tgt_s)
++static void __cpuinit hfpll_init(struct scalable *sc, struct core_speed *tgt_s)
+ {
+ 	pr_debug("Initializing HFPLL%d\n", sc - scalable);
+ 
+@@ -1472,7 +1472,7 @@
+ }
+ 
+ /* Voltage regulator initialization. */
+-static void regulator_init(int cpu, struct acpu_level *lvl)
++static void __cpuinit regulator_init(int cpu, struct acpu_level *lvl)
+ {
+ 	int ret;
+ 	struct scalable *sc = &scalable[cpu];
+@@ -1531,7 +1531,7 @@
+ }
+ 
+ /* Set initial rate for a given core. */
+-static void init_clock_sources(struct scalable *sc,
++static void __cpuinit init_clock_sources(struct scalable *sc,
+ 				      struct core_speed *tgt_s)
+ {
+ 	uint32_t regval;

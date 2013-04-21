@@ -1,0 +1,11 @@
+--- kernel/rcutree.c
++++ kernel/rcutree.c
+@@ -2343,7 +2343,7 @@
+ /*
+  * Handle CPU online/offline notification events.
+  */
+-static int rcu_cpu_notify(struct notifier_block *self,
++static int __cpuinit rcu_cpu_notify(struct notifier_block *self,
+ 				    unsigned long action, void *hcpu)
+ {
+ 	long cpu = (long)hcpu;
