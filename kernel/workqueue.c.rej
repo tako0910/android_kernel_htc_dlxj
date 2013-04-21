@@ -1,0 +1,11 @@
+--- kernel/workqueue.c
++++ kernel/workqueue.c
+@@ -3548,7 +3548,7 @@
+  * spin_lock_irq(gcwq->lock) which may be released and regrabbed
+  * multiple times.  To be used by cpu_callback.
+  */
+-static void wait_trustee_state(struct global_cwq *gcwq, int state)
++static void __cpuinit wait_trustee_state(struct global_cwq *gcwq, int state)
+ __releases(&gcwq->lock)
+ __acquires(&gcwq->lock)
+ {

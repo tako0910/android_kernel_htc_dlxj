@@ -30,7 +30,6 @@
 #include <linux/ion.h>
 #include <linux/memory.h>
 #include <linux/memblock.h>
-#include <linux/msm_thermal.h>
 #include <linux/i2c/atmel_mxt_ts.h>
 #include <linux/cyttsp.h>
 #include <linux/gpio_keys.h>
@@ -3224,14 +3223,6 @@ static struct platform_device msm_tsens_device = {
 	.id = -1,
 };
 
-static struct msm_thermal_data msm_thermal_pdata = {
-	.sensor_id = 0,
-	.poll_ms = 1000,
-	.limit_temp = 51,
-	.temp_hysteresis = 10,
-	.limit_freq = 918000,
-};
-
 #define MSM_SHARED_RAM_PHYS 0x80000000
 static void __init deluxe_j_map_io(void)
 {
@@ -4935,8 +4926,6 @@ static void __init deluxe_j_common_init(void)
 {
 	int rc = 0;
 	struct kobject *properties_kobj;
-
-	msm_thermal_init(&msm_thermal_pdata);
 
 	if (socinfo_init() < 0)
 		pr_err("socinfo_init() failed!\n");

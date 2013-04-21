@@ -1,0 +1,11 @@
+--- drivers/base/cpu.c
++++ drivers/base/cpu.c
+@@ -262,7 +262,7 @@
+  *
+  * Initialize and register the CPU device.
+  */
+-int register_cpu(struct cpu *cpu, int num)
++int __cpuinit register_cpu(struct cpu *cpu, int num)
+ {
+ 	int error;
+ 

@@ -1,0 +1,11 @@
+--- kernel/printk.c
++++ kernel/printk.c
+@@ -1281,7 +1281,7 @@
+  * Special handling must be done for cases invoked from an atomic context,
+  * as we can't be taking the console semaphore here.
+  */
+-static int console_cpu_notify(struct notifier_block *self,
++static int __cpuinit console_cpu_notify(struct notifier_block *self,
+ 	unsigned long action, void *hcpu)
+ {
+ 	switch (action) {

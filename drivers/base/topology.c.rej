@@ -1,0 +1,27 @@
+--- drivers/base/topology.c
++++ drivers/base/topology.c
+@@ -143,21 +143,21 @@
+ };
+ 
+ /* Add/Remove cpu_topology interface for CPU device */
+-static int topology_add_dev(unsigned int cpu)
++static int __cpuinit topology_add_dev(unsigned int cpu)
+ {
+ 	struct device *dev = get_cpu_device(cpu);
+ 
+ 	return sysfs_create_group(&dev->kobj, &topology_attr_group);
+ }
+ 
+-static void topology_remove_dev(unsigned int cpu)
++static void __cpuinit topology_remove_dev(unsigned int cpu)
+ {
+ 	struct device *dev = get_cpu_device(cpu);
+ 
+ 	sysfs_remove_group(&dev->kobj, &topology_attr_group);
+ }
+ 
+-static int topology_cpu_callback(struct notifier_block *nfb,
++static int __cpuinit topology_cpu_callback(struct notifier_block *nfb,
+ 					   unsigned long action, void *hcpu)
+ {
+ 	unsigned int cpu = (unsigned long)hcpu;
