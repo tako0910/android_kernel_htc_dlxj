@@ -1,6 +1,8 @@
 #
 # USB peripheral controller drivers
 #
+EXTRA_CFLAGS			+= -O1
+
 ccflags-$(CONFIG_USB_GADGET_DEBUG) := -DDEBUG
 
 obj-$(CONFIG_USB_GADGET)	+= udc-core.o
