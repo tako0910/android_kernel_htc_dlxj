@@ -899,7 +899,7 @@ static struct platform_device mdm_8064_device = {
 static int configure_uart_gpios(int on)
 {
 	int ret = 0, i;
-	int uart_gpios[] = {BT_UART_TX, BT_UART_RX, BT_UART_CTSz, BT_UART_RTSz};
+	int uart_gpios[] = {BT_UART_TX_XC, BT_UART_RX_XC, BT_UART_CTSz_XC, BT_UART_RTSz_XC};
 
 	for (i = 0; i < ARRAY_SIZE(uart_gpios); i++) {
 		if (on) {
