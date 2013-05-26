@@ -30,7 +30,6 @@
 #include <linux/ion.h>
 #include <linux/memory.h>
 #include <linux/memblock.h>
-#include <linux/msm_thermal.h>
 #include <linux/i2c/atmel_mxt_ts.h>
 #include <linux/cyttsp.h>
 #include <linux/gpio_keys.h>
@@ -3214,7 +3213,7 @@ static struct tsens_platform_data apq_tsens_pdata  = {
 		.hw_type		= APQ_8064,
 		.patherm0		= -1,
 		.patherm1		= -1,
-		.tsens_num_sensor	= 5,
+		.tsens_num_sensor	= 11,
 		.slope = {1176, 1176, 1154, 1176, 1111,
 			1132, 1132, 1199, 1132, 1199, 1132},
 };
@@ -3222,24 +3221,6 @@ static struct tsens_platform_data apq_tsens_pdata  = {
 static struct platform_device msm_tsens_device = {
 	.name   = "tsens8960-tm",
 	.id = -1,
-};
-
-static struct msm_thermal_data msm_thermal_pdata = {
-	.sensor_id = 5,
-	.poll_ms = 150,
-	.shutdown_temp = 120,
-
-	.allowed_max_high = 110,
-	.allowed_max_low = 101,
-	.allowed_max_freq = 702000,
-
-	.allowed_mid_high = 100,
-	.allowed_mid_low = 96,
-	.allowed_mid_freq = 1026000,
-
-	.allowed_low_high = 95,
-	.allowed_low_low = 90,
-	.allowed_low_freq = 1512000,
 };
 
 #define MSM_SHARED_RAM_PHYS 0x80000000
@@ -4945,8 +4926,6 @@ static void __init deluxe_j_common_init(void)
 {
 	int rc = 0;
 	struct kobject *properties_kobj;
-
-	msm_thermal_init(&msm_thermal_pdata);
 
 	if (socinfo_init() < 0)
 		pr_err("socinfo_init() failed!\n");
