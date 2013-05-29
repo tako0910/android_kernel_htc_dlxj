@@ -2042,7 +2042,7 @@ static int nl80211_del_key(struct sk_buff *skb, struct genl_info *info)
 	return err;
 }
 
-#ifdef CONFIG_BCMDHD_FW_PATH
+#ifdef CONFIG_BCMDHD_4334
 static int nl80211_addset_beacon(struct sk_buff *skb, struct genl_info *info)
 {
         int (*call)(struct wiphy *wiphy, struct net_device *dev,
@@ -2194,7 +2194,7 @@ static int nl80211_del_beacon(struct sk_buff *skb, struct genl_info *info)
 }
 #endif
 
-#ifndef CONFIG_BCMDHD_FW_PATH
+#ifndef CONFIG_BCMDHD_4334
 static int nl80211_parse_beacon(struct genl_info *info,
 				struct cfg80211_beacon_data *bcn)
 {
@@ -6490,19 +6490,19 @@ static struct genl_ops nl80211_ops[] = {
 		.cmd = NL80211_CMD_SET_BEACON,
 		.policy = nl80211_policy,
 		.flags = GENL_ADMIN_PERM,
-#ifndef CONFIG_BCMDHD_FW_PATH 
+#ifdef CONFIG_BCMDHD_4334
+		/* HTC_WIFI_START */
+		.doit = nl80211_addset_beacon,
+		.internal_flags = NL80211_FLAG_NEED_NETDEV |
+				  NL80211_FLAG_NEED_RTNL,
+		/* HTC_WIFI_END */
+#else
 		.doit = nl80211_set_beacon,
 		.internal_flags = NL80211_FLAG_NEED_NETDEV_UP |
 				  NL80211_FLAG_NEED_RTNL,
-#else
-		
-		.doit = nl80211_addset_beacon,
-		.internal_flags = NL80211_FLAG_NEED_NETDEV | 
-				  NL80211_FLAG_NEED_RTNL,
-		
 #endif
 	},
-#ifdef CONFIG_BCMDHD_FW_PATH	
+#ifdef CONFIG_BCMDHD_4334
 	{
 		.cmd = NL80211_CMD_NEW_BEACON,
 		.policy = nl80211_policy,
