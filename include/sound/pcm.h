@@ -77,6 +77,7 @@ struct snd_pcm_ops {
 			     unsigned long offset);
 	int (*mmap)(struct snd_pcm_substream *substream, struct vm_area_struct *vma);
 	int (*ack)(struct snd_pcm_substream *substream);
+	int (*restart)(struct snd_pcm_substream *substream);
 };
 
 
@@ -104,6 +105,11 @@ struct snd_pcm_ops {
 #define SNDRV_PCM_TRIGGER_RESUME	6
 
 #define SNDRV_PCM_POS_XRUN		((snd_pcm_uframes_t)-1)
+
+#define SNDRV_DMA_MODE			(0)
+#define SNDRV_NON_DMA_MODE		(1 << 0)
+#define SNDRV_RENDER_STOPPED		(1 << 1)
+#define SNDRV_RENDER_RUNNING		(1 << 2)
 
 #define SNDRV_PCM_RATE_5512		(1<<0)		
 #define SNDRV_PCM_RATE_8000		(1<<1)		
@@ -293,7 +299,7 @@ struct snd_pcm_runtime {
 	unsigned int rate_num;
 	unsigned int rate_den;
 	unsigned int no_period_wakeup: 1;
-
+	unsigned int render_flag;
 	
 	int tstamp_mode;		
   	unsigned int period_step;
