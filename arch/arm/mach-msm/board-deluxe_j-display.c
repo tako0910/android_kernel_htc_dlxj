@@ -824,6 +824,7 @@ static struct msm_panel_common_pdata mdp_pdata = {
 	.mdp_gamma = deluxe_j_mdp_gamma,
 	.mdp_iommu_split_domain = 1,
 	.mdp_max_clk = 266667000,
+	.mdp_max_bw = 3000000000UL,
 };
 
 void __init deluxe_j_mdp_writeback(struct memtype_reserve* reserve_table)
