@@ -808,9 +808,8 @@ int deluxe_j_mdp_gamma(void)
 
 static struct msm_panel_common_pdata mdp_pdata = {
 	.gpio = MDP_VSYNC_GPIO,
-	.mdp_core_clk_rate = 200000000,
-	.mdp_core_clk_table = mdp_core_clk_rate_table,
-	.num_mdp_clk = ARRAY_SIZE(mdp_core_clk_rate_table),
+        .mdp_max_clk = 266667000,
+        .mdp_max_bw = 4000000000UL,
 #ifdef CONFIG_MSM_BUS_SCALING
 	.mdp_bus_scale_table = &mdp_bus_scale_pdata,
 #endif
@@ -823,8 +822,6 @@ static struct msm_panel_common_pdata mdp_pdata = {
 	.cont_splash_enabled = 0x01,
 	.mdp_gamma = deluxe_j_mdp_gamma,
 	.mdp_iommu_split_domain = 1,
-	.mdp_max_clk = 266667000,
-	.mdp_max_bw = 3000000000UL,
 };
 
 void __init deluxe_j_mdp_writeback(struct memtype_reserve* reserve_table)
