@@ -4077,7 +4077,7 @@ struct platform_device device_htc_ramdump = {
 };
 
 static struct platform_device *common_devices[] __initdata = {
-	&msm8960_device_acpuclk,
+	&msm8064_device_acpuclk,
 	&ram_console_device,
 	&apq8064_device_dmov,
 	&apq8064_device_qup_i2c_gsbi1,
@@ -4956,12 +4956,12 @@ static void __init deluxe_j_common_init(void)
 	if (system_rev == XA)
 		clk_ignor_list_add("msm_sdcc.3", "core_clk", &apq8064_clock_init_data);
 	else if (system_rev >= XB)
-		clk_ignor_list_add("msm_sdcc.4", "core_clk", &deluxe_j_clock_init_data_xb);
+		clk_ignor_list_add("msm_sdcc.4", "core_clk", &apq8064_clock_init_data_r2);
 	
 	if ( system_rev == XA )
 		msm_clock_init(&apq8064_clock_init_data);
 	else if ( system_rev >= XB )
-		msm_clock_init(&deluxe_j_clock_init_data_xb);
+		msm_clock_init(&apq8064_clock_init_data_r2);
 	deluxe_j_init_gpiomux();
 #ifdef CONFIG_RESET_BY_CABLE_IN
 	pr_info("[CABLE] Enable Ac Reset Function.(%d) \n", system_rev);

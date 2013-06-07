@@ -174,6 +174,7 @@ config ARCH_MSM8960
 	select ARM_HAS_SG_CHAIN
 	select MSM_KRAIT_WFE_FIXUP
 	select MSM_IOMMU_GPU_SYNC
+	select MSM_CPU_PWRCTL
 
 config ARCH_MSM8930
 	bool "MSM8930"
@@ -2626,6 +2627,12 @@ config MACH_DELUXE_J
         help
           Support for the HTC APQ8064 DELUXE_J.
 
+config QSC_MODEM
+        default n
+        bool "QMC QSC MODEM"
+        help
+          Support for the QMC QSC Modem.
+
 config HTC_HEADSET_ONE_WIRE
 	tristate "HTC 1-wire headset detection driver"
 	depends on HTC_HEADSET_MGR
@@ -2642,6 +2649,13 @@ config SENSE_4_PLUS
 	default y
 	help
 	  Support for SENSE 4 PLUS.
+
+config MSM_CPU_PWRCTL
+	bool "Ensures that krait droop detectors are always off"
+	help
+	  Droop detector mechanism can adversely affect krait plls during
+	  stand alone power collapse operation. Selecting this option
+	  ensures that they are always off.
 
 config MSM_NONSMD_PACKET_FILTER
 	bool "Non-SMD based Packet Filter"

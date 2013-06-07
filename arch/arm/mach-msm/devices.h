@@ -55,14 +55,10 @@ extern struct platform_device *msm_device_uart_gsbi9;
 #ifdef CONFIG_GSBI4_UARTDM
 extern struct platform_device msm_device_uart_dm4;
 #endif
-#ifdef CONFIG_GSBI5_UARTDM
-extern struct platform_device msm_device_uart_dm5;
-#endif
 extern struct platform_device msm_device_uart_dm6;
 extern struct platform_device msm_device_uart_dm9;
 
 extern struct platform_device msm8960_device_uart_gsbi2;
-extern struct platform_device msm8960_device_uart_gsbi3;
 extern struct platform_device msm8960_device_uart_gsbi5;
 extern struct platform_device msm8960_device_uart_gsbi8;
 extern struct platform_device msm8960_device_ssbi_pmic;
@@ -443,4 +439,5 @@ extern struct platform_device msm8625_device_acpuclk;
 extern struct platform_device msm8x50_device_acpuclk;
 extern struct platform_device msm8x60_device_acpuclk;
 extern struct platform_device msm8960_device_acpuclk;
+extern struct platform_device msm8064_device_acpuclk;
 extern struct platform_device msm9615_device_acpuclk;
