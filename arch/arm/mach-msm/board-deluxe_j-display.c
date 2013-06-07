@@ -1297,11 +1297,11 @@ static unsigned char deluxe_j_shrink_pwm(int val)
 static void deluxe_j_set_backlight(struct msm_fb_data_type *mfd)
 {
 	int rc;
-
+/*
 	if (mdp4_overlay_dsi_state_get() <= ST_DSI_SUSPEND) {
 		return;
 	}
-
+*/
 	write_display_brightness[2] = deluxe_j_shrink_pwm((unsigned char)(mfd->bl_level));
 
 	if (resume_blk) {
