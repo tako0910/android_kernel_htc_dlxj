@@ -248,12 +248,6 @@ static struct lcdc_platform_data dtv_pdata = {
 };
 #endif
 
-static int mdp_core_clk_rate_table[] = {
-	200000000,
-	200000000,
-	200000000,
-	200000000,
-};
 struct mdp_reg *mdp_gamma = NULL;
 int mdp_gamma_count = 0;
 
