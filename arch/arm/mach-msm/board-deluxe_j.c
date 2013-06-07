@@ -27,7 +27,7 @@
 #include <linux/spi/spi.h>
 #include <linux/dma-mapping.h>
 #include <linux/platform_data/qcom_crypto_device.h>
-#include <linux/ion.h>
+#include <linux/msm_ion.h>
 #include <linux/memory.h>
 #include <linux/memblock.h>
 #include <linux/msm_thermal.h>
@@ -489,9 +489,7 @@ static struct ion_co_heap_pdata fw_co_deluxe_j_ion_pdata = {
 };
 #endif
 
-static struct ion_platform_data ion_pdata = {
-	.nr = MSM_ION_HEAP_NUM,
-	.heaps = {
+struct ion_platform_heap msm8960_heaps[] = {
 		{
 			.id	= ION_SYSTEM_HEAP_ID,
 			.type	= ION_HEAP_TYPE_SYSTEM,
@@ -552,7 +550,11 @@ static struct ion_platform_data ion_pdata = {
 			.extra_data = (void *) &co_deluxe_j_ion_pdata,
 		},
 #endif
-	}
+};
+
+static struct ion_platform_data ion_pdata = {
+	.nr = MSM_ION_HEAP_NUM,
+	.heaps = msm8960_heaps,
 };
 
 static struct platform_device deluxe_j_ion_dev = {
@@ -718,7 +720,7 @@ static void __init reserve_ion_memory(void)
 		const struct ion_platform_heap *heap =
 			&(ion_pdata.heaps[i]);
 
-		if (heap->type == ION_HEAP_TYPE_CP && heap->extra_data) {
+		if ((int)heap->type == (int)ION_HEAP_TYPE_CP && heap->extra_data) {
 			struct ion_cp_heap_pdata *data = heap->extra_data;
 
 			reusable_count += (data->reusable) ? 1 : 0;
@@ -740,14 +742,14 @@ static void __init reserve_ion_memory(void)
 			int fixed_position = NOT_FIXED;
 			int mem_is_fmem = 0;
 
-			switch (heap->type) {
-			case ION_HEAP_TYPE_CP:
+			switch ((int)heap->type) {
+			case (int)ION_HEAP_TYPE_CP:
 				mem_is_fmem = ((struct ion_cp_heap_pdata *)
 					heap->extra_data)->mem_is_fmem;
 				fixed_position = ((struct ion_cp_heap_pdata *)
 					heap->extra_data)->fixed_position;
 				break;
-			case ION_HEAP_TYPE_CARVEOUT:
+			case (int)ION_HEAP_TYPE_CARVEOUT:
 				mem_is_fmem = ((struct ion_co_heap_pdata *)
 					heap->extra_data)->mem_is_fmem;
 				fixed_position = ((struct ion_co_heap_pdata *)
@@ -798,13 +800,13 @@ static void __init reserve_ion_memory(void)
 			int fixed_position = NOT_FIXED;
 			struct ion_cp_heap_pdata *pdata = NULL;
 
-			switch (heap->type) {
-			case ION_HEAP_TYPE_CP:
+			switch ((int)heap->type) {
+			case (int)ION_HEAP_TYPE_CP:
 				pdata =
 				(struct ion_cp_heap_pdata *)heap->extra_data;
 				fixed_position = pdata->fixed_position;
 				break;
-			case ION_HEAP_TYPE_CARVEOUT:
+			case (int)ION_HEAP_TYPE_CARVEOUT:
 				fixed_position = ((struct ion_co_heap_pdata *)
 					heap->extra_data)->fixed_position;
 				break;

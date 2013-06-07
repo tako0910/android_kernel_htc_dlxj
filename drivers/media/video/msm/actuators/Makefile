@@ -9,6 +9,3 @@ obj-$(CONFIG_TI201_ACT) += ti201_act.o
 obj-$(CONFIG_S5K3H2YX_ACT) += s5k3h2yx_act.o
 obj-$(CONFIG_DW9712_ACT) += dw9712_act.o
 obj-$(CONFIG_AD5046_ACT) += ad5046_act.o
-obj-$(CONFIG_IMX175_ACT) += imx175_act.o
-obj-$(CONFIG_OV5693_ACT) += ov5693_act.o
-obj-$(CONFIG_RUMBAS_ACT) += rumbas_act.o

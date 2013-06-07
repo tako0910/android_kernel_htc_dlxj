@@ -37,8 +37,8 @@ int msm_cam_clk_enable(struct device *dev, struct msm_cam_clk_info *clk_info,
 				rc = clk_set_rate(clk_ptr[i],
 							clk_info[i].clk_rate);
 				if (rc < 0) {
-					pr_err("%s set failed rate %ld\n",
-						   clk_info[i].clk_name, clk_info[i].clk_rate);
+					pr_err("%s set failed\n",
+						   clk_info[i].clk_name);
 					goto cam_clk_set_err;
 				}
 			}

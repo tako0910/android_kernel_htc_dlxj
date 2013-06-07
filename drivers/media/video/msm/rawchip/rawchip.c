@@ -15,6 +15,8 @@
 
 #define MSM_RAWCHIP_NAME "rawchip"
 
+DEFINE_MUTEX(rawchip_lock);
+
 static struct rawchip_id_info_t yushan_id_info = {
 	.rawchip_id_reg_addr = 0x5c04,
 	.rawchip_id = 0x02030200,
@@ -44,18 +46,18 @@ static irqreturn_t yushan_irq_handler(int irq, void *dev_id){
 
 	disable_irq_nosync(rawchipCtrl->pdata->rawchip_intr0);
 
-	
+	//smp_mb();
 	spin_lock_irqsave(&yushan_int.yushan_spin_lock,flags);
-	
-	
-	
-	
+	//CDBG("[CAM] %s detect INT0, interrupt:%d \n",__func__, interrupt);
+	//if (atomic_read(&start_counting))
+	//atomic_set(&yushan_int.frame_count, 1);
+	//smp_mb();
 	atomic_set(&interrupt, 1);
 	CDBG("[CAM] %s after detect INT0, interrupt:%d \n",__func__, atomic_read(&interrupt));
-	
-	
-	
-	
+	//interrupt = 1;
+	//Yushan_ISR();
+	//CDBG("[CAM] %s atomic_set\n",__func__);
+	//Yushan_ClearInterruptEvent(1);
 	wake_up(&yushan_int.yushan_wait);
 	spin_unlock_irqrestore(&yushan_int.yushan_spin_lock,flags);
 
@@ -79,7 +81,7 @@ static irqreturn_t yushan_irq_handler2(int irq, void *dev_id){
 
 int rawchip_set_size(struct rawchip_sensor_data data)
 {
-	int rc = -1;
+	int rc = 0;
 	struct msm_camera_rawchip_info *pdata = rawchipCtrl->pdata;
 	struct rawchip_sensor_init_data rawchip_init_data;
 	Yushan_New_Context_Config_t sYushanNewContextConfig;
@@ -87,6 +89,9 @@ int rawchip_set_size(struct rawchip_sensor_data data)
 	int bit_cnt = 1;
 	static uint32_t pre_pixel_clk = 0;
 	uint8_t orientation;
+
+	mutex_lock(&rawchip_lock);
+
 	CDBG("%s", __func__);
 
 	if (data.mirror_flip == CAMERA_SENSOR_MIRROR_FLIP)
@@ -141,18 +146,20 @@ int rawchip_set_size(struct rawchip_sensor_data data)
 			rc = gpio_request(pdata->rawchip_reset, "rawchip");
 			if (rc < 0) {
 				pr_err("GPIO(%d) request failed\n", pdata->rawchip_reset);
+				mutex_unlock(&rawchip_lock);
 				return rc;
 			}
 			gpio_direction_output(pdata->rawchip_reset, 0);
 			mdelay(1);
 			gpio_direction_output(pdata->rawchip_reset, 1);
 			gpio_free(pdata->rawchip_reset);
-			
+			/*Reset_Yushan();*/
 		}
 		rawchip_init_data.use_rawchip = data.use_rawchip;
-		rc = Yushan_sensor_open_init(rawchip_init_data);
+		Yushan_sensor_open_init(rawchip_init_data);
 		rawchipCtrl->rawchip_init = 1;
-		return rc;
+		mutex_unlock(&rawchip_lock);
+		return 0;
 	}
 
 	pr_info("rawchip set size %d %d %d %d\n",
@@ -174,8 +181,10 @@ int rawchip_set_size(struct rawchip_sensor_data data)
 	sImageChar_context.uwYOddInc = data.y_odd_inc;
 	sImageChar_context.bBinning = data.binning_rawchip;
 
-	rc = Yushan_ContextUpdate_Wrapper(sYushanNewContextConfig, sImageChar_context);
-	return rc;
+	Yushan_ContextUpdate_Wrapper(sYushanNewContextConfig, sImageChar_context);
+
+	mutex_unlock(&rawchip_lock);
+	return 0;
 }
 
 static int rawchip_get_dxoprc_frameSetting(struct rawchip_ctrl *raw_dev, void __user *arg)
@@ -197,6 +206,18 @@ static int rawchip_get_dxoprc_frameSetting(struct rawchip_ctrl *raw_dev, void __
 	frameSetting.xOddInc	= sImageChar_context.uwXOddInc;
 	frameSetting.yOddInc	= sImageChar_context.uwXOddInc;
 	frameSetting.binning	= sImageChar_context.bBinning;
+/*
+	pr_err("prcDxO orientation :	%d\n",frameSetting.orientation);
+	pr_err("prcDxO xStart : 		%d\n",frameSetting.xStart);
+	pr_err("prcDxO yStart : 		%d\n",frameSetting.yStart);
+	pr_err("prcDxO xEnd : 		%d\n",frameSetting.xEnd);
+	pr_err("prcDxO yEnd : 		%d\n",frameSetting.yEnd);
+	pr_err("prcDxO xEvenInc : 	%d\n",frameSetting.xEvenInc);
+	pr_err("prcDxO yEvenInc : 	%d\n",frameSetting.yEvenInc);
+	pr_err("prcDxO xOddInc : 		%d\n",frameSetting.xOddInc);
+	pr_err("prcDxO yOddInc : 		%d\n",frameSetting.yOddInc);
+	pr_err("prcDxO binning : 		%d\n",frameSetting.binning);
+*/
 	if (copy_from_user(&se, arg,
 			sizeof(struct rawchip_stats_event_ctrl))) {
 		pr_err("%s, ERR_COPY_FROM_USER\n", __func__);
@@ -249,20 +270,17 @@ static int rawchip_get_interrupt(struct rawchip_ctrl *raw_dev, void __user *arg)
 	CDBG("[CAM] %s: timeout %d\n", __func__, timeout);
 
 	if (atomic_read(&rawchipCtrl->check_intr0)) {
-		interrupt0_type = Yushan_parse_interrupt(INTERRUPT_PAD_0, rawchipCtrl->error_interrupt_times);
+		interrupt0_type = Yushan_parse_interrupt(INTERRUPT_PAD_0);
 		atomic_set(&rawchipCtrl->check_intr0, 0);
 	}
 	if (atomic_read(&rawchipCtrl->check_intr1)) {
-		interrupt1_type = Yushan_parse_interrupt(INTERRUPT_PAD_1, rawchipCtrl->error_interrupt_times);
+		interrupt1_type = Yushan_parse_interrupt(INTERRUPT_PAD_1);
 		atomic_set(&rawchipCtrl->check_intr1, 0);
 	}
 	interrupt_type = interrupt0_type | interrupt1_type;
 	if (interrupt_type & RAWCHIP_INT_TYPE_ERROR) {
-		rawchipCtrl->total_error_interrupt_times++;
-		if (rawchipCtrl->total_error_interrupt_times <= 10 || rawchipCtrl->total_error_interrupt_times % 1000 == 0) {
-			Yushan_Status_Snapshot();
-			Yushan_dump_Dxo();
-		}
+		Yushan_Status_Snapshot();
+		Yushan_dump_Dxo();
 	}
 	se.type = 10;
 	se.length = sizeof(interrupt_type);
@@ -539,17 +557,12 @@ int rawchip_power_up(const struct msm_camera_rawchip_info *pdata)
 		goto enable_power_on_failed;
 	}
 
-#ifdef CONFIG_RAWCHIP_MCLK
-	rc = msm_camio_clk_enable(CAMIO_CAM_RAWCHIP_MCLK_CLK);
-#else
 	rc = msm_camio_clk_enable(CAMIO_CAM_MCLK_CLK);
-#endif
-
 	if (rc < 0) {
 		pr_err("enable MCLK failed\n");
 		goto enable_mclk_failed;
 	}
-	mdelay(1); 
+	mdelay(1); /*Mu Lee for sequence with raw chip 20120116*/
 
 	rc = gpio_request(pdata->rawchip_reset, "rawchip");
 	if (rc < 0) {
@@ -558,7 +571,7 @@ int rawchip_power_up(const struct msm_camera_rawchip_info *pdata)
 	}
 	gpio_direction_output(pdata->rawchip_reset, 1);
 	gpio_free(pdata->rawchip_reset);
-	mdelay(1); 
+	mdelay(1); /*Mu Lee for sequence with raw chip 20120116*/
 
 	yushan_spi_write(0x0008, 0x7f);
 	mdelay(1);
@@ -566,12 +579,7 @@ int rawchip_power_up(const struct msm_camera_rawchip_info *pdata)
 	return rc;
 
 enable_reset_failed:
-#ifdef CONFIG_RAWCHIP_MCLK
-	rc = msm_camio_clk_disable(CAMIO_CAM_RAWCHIP_MCLK_CLK);
-#else
-	rc = msm_camio_clk_disable(CAMIO_CAM_MCLK_CLK);
-#endif
-
+	msm_camio_clk_disable(CAMIO_CAM_MCLK_CLK);
 enable_mclk_failed:
 	if (pdata->camera_rawchip_power_off == NULL)
 		pr_err("rawchip power off platform_data didn't register\n");
@@ -594,12 +602,7 @@ int rawchip_power_down(const struct msm_camera_rawchip_info *pdata)
 
 	mdelay(1);
 
-#ifdef CONFIG_RAWCHIP_MCLK
-	rc = msm_camio_clk_disable(CAMIO_CAM_RAWCHIP_MCLK_CLK);
-#else
 	rc = msm_camio_clk_disable(CAMIO_CAM_MCLK_CLK);
-#endif
-
 	if (rc < 0)
 		pr_err("disable MCLK failed\n");
 
@@ -622,25 +625,18 @@ int rawchip_match_id(void)
 	int rc = 0;
 	uint32_t chipid = 0;
 	int retry_spi_cnt = 0, retry_readid_cnt = 0;
-	uint8_t read_byte;
-	int i;
 	CDBG("%s\n", __func__);
 
 	for (retry_spi_cnt = 0, retry_readid_cnt = 0; (retry_spi_cnt < 3 && retry_readid_cnt < 3); ) {
-		chipid = 0;
-		for (i = 0; i < 4; i++) {
-			rc = SPI_Read((rawchip_info.rawchip_id_info->rawchip_id_reg_addr + i), 1, (uint8_t*)(&read_byte));
-			if (rc < 0) {
-				pr_err("%s: read id failed\n", __func__);
-				retry_spi_cnt++;
-				pr_info("%s: retry: %d\n", __func__, retry_spi_cnt);
-				mdelay(5);
-				break;
-			} else
-				*((uint8_t*)(&chipid) + i) = read_byte;
-		}
-		if (rc < 0)
+		rc = SPI_Read(rawchip_info.rawchip_id_info->rawchip_id_reg_addr, 4, (uint8_t*)(&chipid));
+		if (rc < 0) {
+			pr_err("%s: read id failed\n", __func__);
+			retry_spi_cnt++;
+			pr_info("%s: retry: %d\n", __func__, retry_spi_cnt);
+			mdelay(5);
 			continue;
+		} else
+			rawchip_id = chipid;
 
 		pr_info("rawchip id: 0x%x requested id: 0x%x\n", chipid, rawchip_info.rawchip_id_info->rawchip_id);
 		if (chipid != rawchip_info.rawchip_id_info->rawchip_id) {
@@ -654,7 +650,6 @@ int rawchip_match_id(void)
 			break;
 	}
 
-	rawchip_id = chipid;
 	return rc;
 }
 
@@ -676,7 +671,6 @@ int rawchip_open_init(void)
 	int rc = 0;
 	struct msm_camera_rawchip_info *pdata = rawchipCtrl->pdata;
 	int read_id_retry = 0;
-	int i;
 
 	pr_info("%s\n", __func__);
 
@@ -701,7 +695,7 @@ open_read_id_retry:
 	atomic_set(&interrupt, 0);
 	atomic_set(&interrupt2, 0);
 
-	
+	/*create irq*/
 	rc = request_irq(pdata->rawchip_intr0, yushan_irq_handler,
 		IRQF_TRIGGER_HIGH, "yushan_irq", 0);
 	if (rc < 0) {
@@ -718,9 +712,6 @@ open_read_id_retry:
 	}
 
 	rawchipCtrl->rawchip_init = 0;
-	rawchipCtrl->total_error_interrupt_times = 0;
-	for (i = 0; i < TOTAL_INTERRUPT_COUNT; i++)
-		rawchipCtrl->error_interrupt_times[i] = 0;
 	atomic_set(&rawchipCtrl->check_intr0, 0);
 	atomic_set(&rawchipCtrl->check_intr1, 0);
 	rawchip_intr0 = pdata->rawchip_intr0;
