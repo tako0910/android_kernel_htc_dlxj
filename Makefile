@@ -353,20 +353,10 @@ CC		= $(srctree)/scripts/gcc-wrapper.py $(REAL_CC)
 
 CHECKFLAGS     := -D__linux__ -Dlinux -D__STDC__ -Dunix -D__unix__ \
 		  -Wbitwise -Wno-return-void $(CF)
-CFLAGS_MODULE   = -fgcse-lm -fgcse-sm -fsched-spec-load -fforce-addr \
-		  -ffast-math -fsingle-precision-constant \
-                  -fmodulo-sched -fmodulo-sched-allow-regmoves \
-                  -funswitch-loops -fpredictive-commoning -fgcse-after-reload \
-                  -march=armv7-a -mfpu=neon -ftree-vectorize
-CFLAGS_MODULE  += -mtune=cortex-a15
+CFLAGS_MODULE   =
 AFLAGS_MODULE   =
 LDFLAGS_MODULE  =
-CFLAGS_KERNEL	= -fgcse-lm -fgcse-sm -fsched-spec-load -fforce-addr \
-                  -ffast-math -fsingle-precision-constant \
-                  -fmodulo-sched -fmodulo-sched-allow-regmoves \
-                  -funswitch-loops -fpredictive-commoning -fgcse-after-reload \
-                  -march=armv7-a -mfpu=neon -ftree-vectorize
-CFLAGS_KERNEL  += -mtune=cortex-a15
+CFLAGS_KERNEL	=
 AFLAGS_KERNEL	=
 CFLAGS_GCOV	= -fprofile-arcs -ftest-coverage
 

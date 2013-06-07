@@ -102,6 +102,7 @@ static struct workqueue_struct *qmi_wq;
 
 static int verbose = 0;
 
+/* anyone waiting for a state change waits here */
 static DECLARE_WAIT_QUEUE_HEAD(qmi_wait_queue);
 
 
@@ -154,6 +155,9 @@ int qmi_add_tlv(struct qmi_msg *msg,
 	return 0;
 }
 
+/* Extract a tagged item from a qmi message buffer,
+** taking care not to overrun the buffer.
+*/
 static int qmi_get_tlv(struct qmi_msg *msg,
 		       unsigned type, unsigned size, void *data)
 {
@@ -164,7 +168,7 @@ static int qmi_get_tlv(struct qmi_msg *msg,
 	while (len >= 3) {
 		len -= 3;
 
-		
+		/* size of this item */
 		n = x[1] | (x[2] << 8);
 		if (n > len)
 			break;
@@ -195,8 +199,10 @@ static unsigned qmi_get_status(struct qmi_msg *msg, unsigned *error)
 	}
 }
 
+/* 0x01 <qmux-header> <payload> */
 #define QMUX_HEADER    13
 
+/* should be >= HEADER + FOOTER */
 #define QMUX_OVERHEAD  16
 
 static int qmi_send(struct qmi_ctxt *ctxt, struct qmi_msg *msg)
@@ -214,25 +220,25 @@ static int qmi_send(struct qmi_ctxt *ctxt, struct qmi_msg *msg)
 		hlen = QMUX_HEADER;
 	}
 
-	
+	/* QMUX length is total header + total payload - IFC selector */
 	len = hlen + msg->size - 1;
 	if (len > 0xffff)
 		return -1;
 
 	data = msg->tlv - hlen;
 
-	
-	*data++ = 0x01; 
+	/* prepend encap and qmux header */
+	*data++ = 0x01; /* ifc selector */
 
-	
+	/* qmux header */
 	*data++ = len;
 	*data++ = len >> 8;
-	*data++ = 0x00; 
+	*data++ = 0x00; /* flags: client */
 	*data++ = msg->service;
 	*data++ = msg->client_id;
 
-	
-	*data++ = 0x00; 
+	/* qmi header */
+	*data++ = 0x00; /* flags: send */
 	*data++ = msg->txn_id;
 	if (msg->service != QMI_CTL)
 		*data++ = msg->txn_id >> 8;
@@ -242,7 +248,7 @@ static int qmi_send(struct qmi_ctxt *ctxt, struct qmi_msg *msg)
 	*data++ = msg->size;
 	*data++ = msg->size >> 8;
 
-	
+	/* len + 1 takes the interface selector into account */
 	r = smd_write(ctxt->ch, msg->tlv - hlen, len + 1);
 
 	if (r != len) {
@@ -318,20 +324,6 @@ static void qmi_process_unicast_wds_msg(struct qmi_ctxt *ctxt,
 		if (qmi_get_status(msg, &err)) {
 			printk(KERN_ERR
 			       "qmi: wds: network start failed (%04x)\n", err);
-			
-			ctxt->state = STATE_OFFLINE;
-			ctxt->state_dirty = 1;
-			
-			if (msg->size == 0x000c && (msg->tlv)[10] == 0x0b) {
-				printk(KERN_ERR "qmi: wds: pdp activation collided with CCFC\n");
-				ctxt->state = STATE_OFFLINE;
-				ctxt->state_dirty = 1;
-			}
-			if (msg->size == 0x000c && (msg->tlv)[10] == 0x0c) {
-				printk(KERN_ERR "qmi: wds: pdp activation failed. Cause: Operator-determined barring\n");
-				ctxt->state = STATE_OFFLINE;
-				ctxt->state_dirty = 1;
-			}
 		} else if (qmi_get_tlv(msg, 0x01, sizeof(ctxt->wds_handle), &ctxt->wds_handle)) {
 			printk(KERN_INFO
 			       "qmi: wds no handle?\n");
@@ -404,22 +396,22 @@ static void qmi_process_qmux(struct qmi_ctxt *ctxt,
 {
 	struct qmi_msg msg;
 
-	
+	/* require a full header */
 	if (sz < 5)
 		return;
 
-	
+	/* require a size that matches the buffer size */
 	if (sz != (buf[0] | (buf[1] << 8)))
 		return;
 
-	
+	/* only messages from a service (bit7=1) are allowed */
 	if (buf[2] != 0x80)
 		return;
 
 	msg.service = buf[3];
 	msg.client_id = buf[4];
 
-	
+	/* annoyingly, CTL messages have a shorter TID */
 	if (buf[3] == 0) {
 		if (sz < 7)
 			return;
@@ -434,7 +426,7 @@ static void qmi_process_qmux(struct qmi_ctxt *ctxt,
 		sz -= 8;
 	}
 
-	
+	/* no type and size!? */
 	if (sz < 4)
 		return;
 	sz -= 4;
@@ -490,7 +482,7 @@ static void qmi_read_work(struct work_struct *ws)
 			continue;
 		}
 
-		
+		/* interface selector must be 1 */
 		if (buf[0] != 0x01)
 			continue;
 
@@ -574,7 +566,6 @@ static int qmi_network_up(struct qmi_ctxt *ctxt, char *apn)
 {
 	unsigned char data[96 + QMUX_OVERHEAD];
 	struct qmi_msg msg;
-	char *auth_type;
 	char *user;
 	char *pass;
 
@@ -591,13 +582,6 @@ static int qmi_network_up(struct qmi_ctxt *ctxt, char *apn)
 		}
 	}
 
-	for (auth_type = pass; *auth_type; auth_type++) {
-		if (*auth_type == ' ') {
-			*auth_type++ = 0;
-			break;
-		}
-	}
-
 	msg.service = QMI_WDS;
 	msg.client_id = ctxt->wds_client_id;
 	msg.txn_id = ctxt->wds_txn_id;
@@ -608,14 +592,10 @@ static int qmi_network_up(struct qmi_ctxt *ctxt, char *apn)
 	ctxt->wds_txn_id += 2;
 
 	qmi_add_tlv(&msg, 0x14, strlen(apn), apn);
-	if (*auth_type)
-		qmi_add_tlv(&msg, 0x16, strlen(auth_type), auth_type);
 	if (*user) {
-		if (!*auth_type) {
-			unsigned char x;
-			x = 3;
-			qmi_add_tlv(&msg, 0x16, 1, &x);
-		}
+		unsigned char x;
+		x = 3;
+		qmi_add_tlv(&msg, 0x16, 1, &x);
 		qmi_add_tlv(&msg, 0x17, strlen(user), user);
 		if (*pass)
 			qmi_add_tlv(&msg, 0x18, strlen(pass), pass);
@@ -728,7 +708,7 @@ static ssize_t qmi_write(struct file *fp, const char __user *buf,
 
 	cmd[len] = 0;
 
-	
+	/* lazy */
 	if (cmd[len-1] == '\n') {
 		cmd[len-1] = 0;
 		len--;
@@ -810,7 +790,7 @@ static struct file_operations qmi_fops = {
 };
 
 static struct qmi_ctxt qmi_device0 = {
-	.ch_name = "DATA5_CNTL",
+	.ch_name = "SMD_DATA5_CNTL",
 	.misc = {
 		.minor = MISC_DYNAMIC_MINOR,
 		.name = "qmi0",
@@ -818,7 +798,7 @@ static struct qmi_ctxt qmi_device0 = {
 	}
 };
 static struct qmi_ctxt qmi_device1 = {
-	.ch_name = "DATA6_CNTL",
+	.ch_name = "SMD_DATA6_CNTL",
 	.misc = {
 		.minor = MISC_DYNAMIC_MINOR,
 		.name = "qmi1",
@@ -826,7 +806,7 @@ static struct qmi_ctxt qmi_device1 = {
 	}
 };
 static struct qmi_ctxt qmi_device2 = {
-	.ch_name = "DATA7_CNTL",
+	.ch_name = "SMD_DATA7_CNTL",
 	.misc = {
 		.minor = MISC_DYNAMIC_MINOR,
 		.name = "qmi2",

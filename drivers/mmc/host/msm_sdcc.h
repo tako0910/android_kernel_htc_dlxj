@@ -188,7 +188,7 @@
 #define MCI_STATUS2		0x06C
 #define MCI_MCLK_REG_WR_ACTIVE	(1 << 0)
 
-#define MMCIFIFO		0x080 
+#define MMCIFIFO		0x080 /* to 0x0bc */
 
 #define MCI_TEST_INPUT		0x0D4
 
@@ -204,32 +204,51 @@
 	MCI_TXFIFOFULLMASK | MCI_RXFIFOHALFFULLMASK |			\
 	MCI_TXFIFOHALFEMPTYMASK | MCI_RXACTIVEMASK | MCI_TXACTIVEMASK)
 
+/*
+ * The size of the FIFO in bytes.
+ */
 #define MCI_FIFOSIZE	(16*4)
 
 #define MCI_FIFOHALFSIZE (MCI_FIFOSIZE / 2)
 
 #define NR_SG		128
 
-#define MSM_MMC_IDLE_TIMEOUT	5000 
-#define MSM_MMC_IDLE_TIMEOUT_EMMC	20 
-#define MSM_MMC_CLK_GATE_DELAY	200 
+#define MSM_MMC_IDLE_TIMEOUT	5000 /* msecs */
+#define MSM_MMC_IDLE_TIMEOUT_EMMC	20 /* msecs */
+#define MSM_MMC_CLK_GATE_DELAY	200 /* msecs */
 
-#define MSM_MMC_REQ_TIMEOUT	10000 
+/* Set the request timeout to 10secs */
+#define MSM_MMC_REQ_TIMEOUT	10000 /* msecs */
 
+/*
+ * Controller HW limitations
+ */
 #define MCI_DATALENGTH_BITS	25
 #define MMC_MAX_REQ_SIZE	((1 << MCI_DATALENGTH_BITS) - 1)
+/* MCI_DATA_CTL BLOCKSIZE up to 4096 */
 #define MMC_MAX_BLK_SIZE	4096
 #define MMC_MIN_BLK_SIZE	512
 #define MMC_MAX_BLK_CNT		(MMC_MAX_REQ_SIZE / MMC_MIN_BLK_SIZE)
 
+/* 64KiB */
 #define MAX_SG_SIZE		(64 * 1024)
 #define MAX_NR_SG_DMA_PIO	(MMC_MAX_REQ_SIZE / MAX_SG_SIZE)
 
+/*
+ * BAM limitations
+ */
+/* upto 16 bits (64K - 1) */
 #define SPS_MAX_DESC_FIFO_SIZE	65535
+/* 16KiB */
 #define SPS_MAX_DESC_SIZE	(16 * 1024)
+/* Each descriptor is of length 8 bytes */
 #define SPS_MAX_DESC_LENGTH	8
 #define SPS_MAX_DESCS		(SPS_MAX_DESC_FIFO_SIZE / SPS_MAX_DESC_LENGTH)
 
+/*
+ * DMA limitations
+ */
+/* upto 16 bits (64K - 1) */
 #define MMC_MAX_DMA_ROWS (64 * 1024 - 1)
 #define MMC_MAX_DMA_BOX_LENGTH (MMC_MAX_DMA_ROWS * MCI_FIFOSIZE)
 #define MMC_MAX_DMA_CMDS (MAX_NR_SG_DMA_PIO * (MMC_MAX_REQ_SIZE / \
@@ -257,7 +276,7 @@ struct msmsdcc_dma_data {
 	int				channel;
 	int				crci;
 	struct msmsdcc_host		*host;
-	int				busy; 
+	int				busy; /* Set if DM is busy */
 	unsigned int 			result;
 	struct msm_dmov_errdata		err;
 };
@@ -265,7 +284,7 @@ struct msmsdcc_dma_data {
 struct msmsdcc_pio_data {
 	struct sg_mapping_iter		sg_miter;
 	char				bounce_buf[4];
-	
+	/* valid bytes in bounce_buf */
 	int				bounce_buf_len;
 };
 
@@ -273,9 +292,9 @@ struct msmsdcc_curr_req {
 	struct mmc_request	*mrq;
 	struct mmc_command	*cmd;
 	struct mmc_data		*data;
-	unsigned int		xfer_size;	
-	unsigned int		xfer_remain;	
-	unsigned int		data_xfered;	
+	unsigned int		xfer_size;	/* Total data size */
+	unsigned int		xfer_remain;	/* Bytes remaining to send */
+	unsigned int		data_xfered;	/* Bytes acked by BLKEND irq */
 	int			got_dataend;
 	bool			wait_for_auto_prog_done;
 	bool			got_auto_prog_done;
@@ -333,16 +352,16 @@ struct msmsdcc_host {
 	struct msmsdcc_curr_req	curr;
 
 	struct mmc_host		*mmc;
-	struct clk		*clk;		
-	struct clk		*pclk;		
-	struct clk		*bus_clk;	
-	atomic_t		clks_on;	
+	struct clk		*clk;		/* main MMC bus clock */
+	struct clk		*pclk;		/* SDCC peripheral bus clock */
+	struct clk		*bus_clk;	/* SDCC bus voter clock */
+	atomic_t		clks_on;	/* set if clocks are enabled */
 
-	unsigned int		eject;		
+	unsigned int		eject;		/* eject state */
 
 	spinlock_t		lock;
 
-	unsigned int		clk_rate;	
+	unsigned int		clk_rate;	/* Current clock rate */
 	unsigned int		pclk_rate;
 	unsigned int		ddr_doubled_clk_rate;
 
@@ -369,7 +388,7 @@ struct msmsdcc_host {
 
 	unsigned int prog_enable;
 
-	
+	/* Command parameters */
 	unsigned int		cmd_timeout;
 	unsigned int		cmd_pio_irqmask;
 	unsigned int		cmd_datactrl;
@@ -387,7 +406,6 @@ struct msmsdcc_host {
 	bool io_pad_pwr_switch;
 	bool tuning_in_progress;
 	bool tuning_needed;
-	bool en_auto_cmd19;
 	bool sdio_gpio_lpm;
 	bool irq_wake_enabled;
 	struct pm_qos_request pm_qos_req_dma;
@@ -396,19 +414,11 @@ struct msmsdcc_host {
 	bool sdcc_irq_disabled;
 	bool sdcc_suspended;
 	bool sdio_wakeupirq_disabled;
-	ktime_t enable_t;
-	ktime_t disable_t;
-	ktime_t rpm_sus_t;
-	ktime_t rpm_res_t;
 	struct mutex clk_mutex;
-	struct mutex rpm_mutex;
-	atomic_t enable_count_usage;
-	atomic_t disable_count_usage;
 	bool pending_resume;
 	struct msmsdcc_msm_bus_vote msm_bus_vote;
 	struct device_attribute	max_bus_bw;
 	struct device_attribute	polling;
-	struct device_attribute auto_cmd19_attr;
 	struct proc_dir_entry *wr_perf_proc;
 	struct proc_dir_entry *burst_proc;
 	struct proc_dir_entry *bkops_proc;
@@ -427,9 +437,6 @@ struct msmsdcc_host {
 #define MSMSDCC_REG_WR_ACTIVE	(1 << 4)
 #define MSMSDCC_SW_RST		(1 << 5)
 #define MSMSDCC_SW_RST_CFG	(1 << 6)
-#define MSMSDCC_WAIT_FOR_TX_RX	(1 << 7)
-#define MSMSDCC_IO_PAD_PWR_SWITCH	(1 << 8)
-#define MSMSDCC_AUTO_CMD19	(1 << 9)
 
 #define set_hw_caps(h, val)		((h)->hw_caps |= val)
 #define is_sps_mode(h)			((h)->hw_caps & MSMSDCC_SPS_BAM_SUP)
@@ -439,13 +446,15 @@ struct msmsdcc_host {
 #define is_wait_for_reg_write(h)	((h)->hw_caps & MSMSDCC_REG_WR_ACTIVE)
 #define is_sw_hard_reset(h)		((h)->hw_caps & MSMSDCC_SW_RST)
 #define is_sw_reset_save_config(h)	((h)->hw_caps & MSMSDCC_SW_RST_CFG)
-#define is_wait_for_tx_rx_active(h)	((h)->hw_caps & MSMSDCC_WAIT_FOR_TX_RX)
-#define is_io_pad_pwr_switch(h)	((h)->hw_caps & MSMSDCC_IO_PAD_PWR_SWITCH)
-#define is_auto_cmd19(h)		((h)->hw_caps & MSMSDCC_AUTO_CMD19)
 
+/* Set controller capabilities based on version */
 static inline void set_default_hw_caps(struct msmsdcc_host *host)
 {
 	u32 version;
+	/*
+	 * Lookup the Controller Version, to identify the supported features
+	 * Version number read as 0 would indicate SDCC3 or earlier versions.
+	 */
 	version = readl_relaxed(host->base + MCI_VERSION);
 	pr_info("%s: SDCC Version: 0x%.8x\n", mmc_hostname(host->mmc), version);
 
@@ -453,13 +462,11 @@ static inline void set_default_hw_caps(struct msmsdcc_host *host)
 		return;
 
 	version &= MSMSDCC_VERSION_MASK;
-	if (version) 
+	if (version) /* SDCC v4 and greater */
 		host->hw_caps |= MSMSDCC_AUTO_PROG_DONE |
-			MSMSDCC_SOFT_RESET | MSMSDCC_REG_WR_ACTIVE
-			| MSMSDCC_WAIT_FOR_TX_RX | MSMSDCC_IO_PAD_PWR_SWITCH
-			| MSMSDCC_AUTO_CMD19;
+			MSMSDCC_SOFT_RESET | MSMSDCC_REG_WR_ACTIVE;
 
-	if (version >= 0x2D) 
+	if (version >= 0x2D) /* SDCC v4 2.1.0 and greater */
 		host->hw_caps |= MSMSDCC_SW_RST | MSMSDCC_SW_RST_CFG;
 }
 

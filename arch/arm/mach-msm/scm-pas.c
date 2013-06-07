@@ -37,7 +37,7 @@ int pas_init_image(enum pas_id id, const u8 *metadata, size_t size)
 		u32	image_addr;
 	} request;
 	u32 scm_ret = 0;
-	
+	/* Make memory physically contiguous */
 	void *mdata_buf = kmemdup(metadata, size, GFP_KERNEL);
 
 	if (!mdata_buf)
@@ -131,18 +131,6 @@ static void scm_pas_disable_bw(void)
 	mutex_unlock(&scm_pas_bw_mutex);
 }
 
-int scm_pas_enable_dx_bw(void)
-{
-    return scm_pas_enable_bw();
-}
-EXPORT_SYMBOL(scm_pas_enable_dx_bw);
-
-void scm_pas_disable_dx_bw(void)
-{
-	scm_pas_disable_bw();
-}
-EXPORT_SYMBOL(scm_pas_disable_dx_bw);
-
 int pas_auth_and_reset(enum pas_id id)
 {
 	int ret, bus_ret;
@@ -190,6 +178,10 @@ int pas_supported(enum pas_id id)
 	if (!secure_pil)
 		return 0;
 
+	/*
+	 * 8660 SCM doesn't support querying secure PIL support so just return
+	 * true if not overridden on the command line.
+	 */
 	if (cpu_is_msm8x60())
 		return 1;
 

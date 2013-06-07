@@ -24,6 +24,7 @@ struct mdm_ops {
 	void (*status_cb)(struct mdm_modem_drv *mdm_drv, int value);
 };
 
+/* Private mdm2 data structure */
 struct mdm_modem_drv {
 	unsigned mdm2ap_errfatal_gpio;
 	unsigned ap2mdm_errfatal_gpio;
@@ -34,9 +35,9 @@ struct mdm_modem_drv {
 	unsigned ap2mdm_pmic_reset_n_gpio;
 	unsigned ap2mdm_kpdpwr_n_gpio;
 	unsigned mdm2ap_hsic_ready_gpio;
-	
+	/* HTC added start */
 	unsigned ap2mdm_ipc1_gpio;
-	
+	/* HTC added end */
 
 	int mdm_errfatal_irq;
 	int mdm_status_irq;
@@ -45,7 +46,6 @@ struct mdm_modem_drv {
 	int mdm_ram_dump_status;
 	enum charm_boot_type boot_type;
 	int mdm_debug_on;
-	int mdm_hsic_reconnectd;
 
 	struct mdm_ops *ops;
 	struct mdm_platform_data *pdata;

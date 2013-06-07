@@ -18,6 +18,8 @@
 #include <linux/rtc.h>
 #include <mach/htc_battery_common.h>
 
+#ifdef CONFIG_MSM_BATTERY_DEBUG
+
 #define BATT_LOG(x...) do { \
 struct timespec ts; \
 struct rtc_time tm; \
@@ -28,6 +30,12 @@ printk(" at %lld (%d-%02d-%02d %02d:%02d:%02d.%09lu UTC)\n", \
 ktime_to_ns(ktime_get()), tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, \
 tm.tm_hour, tm.tm_min, tm.tm_sec, ts.tv_nsec); \
 } while (0)
+
+#else
+
+#define BATT_LOG(x...) /* NOP */
+
+#endif
 
 #define BATT_ERR(x...) do { \
 struct timespec ts; \
@@ -53,12 +61,6 @@ enum {
 	OVERLOAD,
 };
 
-enum htc_batt_rt_attr {
-	HTC_BATT_RT_VOLTAGE = 0,
-	HTC_BATT_RT_CURRENT,
-	HTC_BATT_RT_TEMPERATURE,
-};
-
 struct battery_info_reply {
 	u32 batt_vol;
 	u32 batt_id;
@@ -78,7 +80,6 @@ struct battery_info_reply {
 };
 
 struct htc_battery_core {
-	int (*func_get_batt_rt_attr)(enum htc_batt_rt_attr attr, int* val);
 	int (*func_show_batt_attr)(struct device_attribute *attr, char *buf);
 	int (*func_show_cc_attr)(struct device_attribute *attr, char *buf);
 	int (*func_show_htc_extension_attr)(struct device_attribute *attr, char *buf);

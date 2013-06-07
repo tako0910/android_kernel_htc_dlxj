@@ -19,4 +19,3 @@ obj-$(CONFIG_MACH_K2_PLC_CL) += board-k2-gpu.o
 obj-$(CONFIG_MACH_K2_WL) += board-k2-gpu.o
 obj-$(CONFIG_MACH_ELITE) += board-elite-display.o board-elite-panel.o
 obj-$(CONFIG_MACH_JET) += board-jet-panel.o
-obj-$(CONFIG_MACH_FIGHTER) += board-fighter-panel.o

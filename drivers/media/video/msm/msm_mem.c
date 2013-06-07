@@ -137,7 +137,7 @@ static int msm_pmem_table_add(struct hlist_head *ptype,
 	if (IS_ERR_OR_NULL(region->handle))
 		goto out1;
 	if (ion_map_iommu(client, region->handle, CAMERA_DOMAIN, GEN_POOL,
-				  SZ_4K, 0, &paddr, &len, UNCACHED, 0) < 0)
+				  SZ_4K, 0, &paddr, &len, 0, 0) < 0)
 		goto out2;
 #elif CONFIG_ANDROID_PMEM
 	rc = get_pmem_file(info->fd, &paddr, &kvstart, &len, &file);
@@ -209,9 +209,6 @@ static int __msm_register_pmem(struct hlist_head *ptype,
 	case MSM_PMEM_IHIST:
 	case MSM_PMEM_SKIN:
 	case MSM_PMEM_AEC_AWB:
-	case MSM_PMEM_BAYER_GRID:
-	case MSM_PMEM_BAYER_FOCUS:
-	case MSM_PMEM_BAYER_HIST:
 		rc = msm_pmem_table_add(ptype, pinfo, client);
 		break;
 
@@ -239,9 +236,6 @@ static int __msm_pmem_table_del(struct hlist_head *ptype,
 	case MSM_PMEM_IHIST:
 	case MSM_PMEM_SKIN:
 	case MSM_PMEM_AEC_AWB:
-	case MSM_PMEM_BAYER_GRID:
-	case MSM_PMEM_BAYER_FOCUS:
-	case MSM_PMEM_BAYER_HIST:
 		hlist_for_each_entry_safe(region, node, n,
 				ptype, list) {
 
@@ -269,6 +263,7 @@ static int __msm_pmem_table_del(struct hlist_head *ptype,
 	return rc;
 }
 
+/* return of 0 means failure */
 uint8_t msm_pmem_region_lookup(struct hlist_head *ptype,
 	int pmem_type, struct msm_pmem_region *reg, uint8_t maxcount)
 {
@@ -382,14 +377,13 @@ unsigned long msm_pmem_stats_ptov_lookup(
 	hlist_for_each_entry_safe(region, node, n,
 	&mctl->stats_info.pmem_stats_list, list) {
 		if (addr == region->paddr && region->info.active) {
+			/* offset since we could pass vaddr inside a
+			 * registered pmem buffer */
 			*fd = region->info.fd;
 			region->info.active = 0;
 			return (unsigned long)(region->info.vaddr);
 		}
 	}
-
-    if (addr != 0)
-        pr_err("%s: abnormal addr == 0X%x\n", __func__, (uint32_t)addr);
 
 	return 0;
 }

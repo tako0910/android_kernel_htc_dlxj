@@ -1,7 +1,5 @@
 ccflags-$(CONFIG_POWER_SUPPLY_DEBUG) := -DDEBUG
 
-EXTRA_CFLAGS += -Os
-
 power_supply-y				:= power_supply_core.o
 power_supply-$(CONFIG_SYSFS)		+= power_supply_sysfs.o
 power_supply-$(CONFIG_LEDS_TRIGGERS)	+= power_supply_leds.o
@@ -70,7 +68,7 @@ else
 		obj-y += pm8921-charger-htc.o
 endif
 endif
-ifdef CONFIG_AMP_RT5501
+ifdef CONFIG_AMP_TPA6185
                obj-y += pm8921-audio.o
 endif
 obj-$(CONFIG_LTC4088_CHARGER)	+= ltc4088-charger.o

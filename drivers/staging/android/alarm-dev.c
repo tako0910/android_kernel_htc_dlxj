@@ -30,7 +30,6 @@
 #define ANDROID_ALARM_PRINT_IO (1U << 1)
 #define ANDROID_ALARM_PRINT_INT (1U << 2)
 
-
 static int debug_mask = ANDROID_ALARM_PRINT_INFO;
 module_param_named(debug_mask, debug_mask, int, S_IRUGO | S_IWUSR | S_IWGRP);
 
@@ -103,6 +102,7 @@ static void devalarm_cancel(struct devalarm *alrm)
 	else
 		hrtimer_cancel(&alrm->u.hrt);
 }
+
 
 static long alarm_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
@@ -288,7 +288,7 @@ static void devalarm_triggered(struct devalarm *alarm)
 	unsigned long flags;
 	uint32_t alarm_type_mask = 1U << alarm->type;
 
-	pr_alarm(INT, "devtriggered type %d\n", alarm->type);
+	pr_alarm(INT, "devalarm_triggered type %d\n", alarm->type);
 	spin_lock_irqsave(&alarm_slock, flags);
 	if (alarm_enabled & alarm_type_mask) {
 		wake_lock_timeout(&alarm_wake_lock, 5 * HZ);
@@ -298,6 +298,7 @@ static void devalarm_triggered(struct devalarm *alarm)
 	}
 	spin_unlock_irqrestore(&alarm_slock, flags);
 }
+
 
 static enum hrtimer_restart devalarm_hrthandler(struct hrtimer *hrt)
 {
@@ -315,6 +316,7 @@ static enum alarmtimer_restart devalarm_alarmhandler(struct alarm *alrm,
 	devalarm_triggered(devalrm);
 	return ALARMTIMER_NORESTART;
 }
+
 
 static const struct file_operations alarm_fops = {
 	.owner = THIS_MODULE,

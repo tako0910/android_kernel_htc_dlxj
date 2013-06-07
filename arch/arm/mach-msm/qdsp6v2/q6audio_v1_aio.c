@@ -23,13 +23,6 @@
 #include <asm/ioctls.h>
 #include "audio_utils_aio.h"
 
-#ifdef CONFIG_MACH_DUMMY
-#undef pr_info
-#undef pr_err
-#define pr_info(fmt, ...) pr_aud_info(fmt, ##__VA_ARGS__)
-#define pr_err(fmt, ...) pr_aud_err(fmt, ##__VA_ARGS__)
-#endif
-
 void q6_audio_cb(uint32_t opcode, uint32_t token,
 		uint32_t *payload, void *priv)
 {
@@ -70,10 +63,12 @@ void audio_aio_cb(uint32_t opcode, uint32_t token,
 		audio_aio_async_read_ack(audio, token, payload);
 		break;
 	case ASM_DATA_CMDRSP_EOS:
-		
+		/* EOS Handle */
 		pr_debug("%s[%p]:ASM_DATA_CMDRSP_EOS\n", __func__, audio);
-		if (audio->feedback) { 
+		if (audio->feedback) { /* Non-Tunnel mode */
 			audio->eos_rsp = 1;
+			/* propagate input EOS i/p buffer,
+			after receiving DSP acknowledgement */
 			if (audio->eos_flag &&
 				(audio->eos_write_payload.aio_buf.buf_addr)) {
 				audio_aio_post_event(audio,
@@ -83,7 +78,7 @@ void audio_aio_cb(uint32_t opcode, uint32_t token,
 					sizeof(union msm_audio_event_payload));
 				audio->eos_flag = 0;
 			}
-		} else { 
+		} else { /* Tunnel mode */
 			audio->eos_rsp = 1;
 			wake_up(&audio->write_wait);
 			wake_up(&audio->cmd_wait);
@@ -116,6 +111,7 @@ void audio_aio_cb(uint32_t opcode, uint32_t token,
 	}
 }
 
+/* Read buffer from DSP / Handle Ack from DSP */
 void audio_aio_async_read_ack(struct q6audio_aio *audio, uint32_t token,
 			uint32_t *payload)
 {
@@ -123,11 +119,11 @@ void audio_aio_async_read_ack(struct q6audio_aio *audio, uint32_t token,
 	union msm_audio_event_payload event_payload;
 	struct audio_aio_buffer_node *filled_buf;
 
-	
+	/* No active flush in progress */
 	if (audio->rflush)
 		return;
 
-	
+	/* Statistics of read */
 	atomic_add(payload[2], &audio->in_bytes);
 	atomic_add(payload[7], &audio->in_samples);
 
@@ -139,10 +135,12 @@ void audio_aio_async_read_ack(struct q6audio_aio *audio, uint32_t token,
 		list_del(&filled_buf->list);
 		spin_unlock_irqrestore(&audio->dsp_lock, flags);
 		event_payload.aio_buf = filled_buf->buf;
+		/* Read done Buffer due to flush/normal condition
+		after EOS event, so append EOS buffer */
 		if (audio->eos_rsp == 0x1) {
 			event_payload.aio_buf.data_len =
 			insert_eos_buf(audio, filled_buf);
-			
+			/* Reset flag back to indicate eos intimated */
 			audio->eos_rsp = 0;
 		} else {
 			filled_buf->meta_info.meta_out.num_of_frames =

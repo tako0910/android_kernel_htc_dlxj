@@ -128,11 +128,20 @@ extern int board_mfg_mode(void);
 extern unsigned long acpuclk_8960_power_collapse(void);
 #endif
 #define CPU_FOOT_PRINT_MAGIC				0xACBDFE00
+#define CPU_FOOT_PRINT_MAGIC_SPC			0xACBDAA00
 #define CPU_FOOT_PRINT_BASE_CPU0_VIRT		(MSM_KERNEL_FOOTPRINT_BASE + 0x0)
+
+static void init_cpu_foot_print(unsigned cpu, bool notify_rpm)
+{
+	unsigned *status = (unsigned *)CPU_FOOT_PRINT_BASE_CPU0_VIRT + cpu;
+	*status = (notify_rpm) ? CPU_FOOT_PRINT_MAGIC : CPU_FOOT_PRINT_MAGIC_SPC;
+	mb();
+}
+
 static void set_cpu_foot_print(unsigned cpu, unsigned state)
 {
 	unsigned *status = (unsigned *)CPU_FOOT_PRINT_BASE_CPU0_VIRT + cpu;
-	*status = (CPU_FOOT_PRINT_MAGIC | state);
+	*(unsigned char *)status = (unsigned char)state;
 	mb();
 }
 
@@ -564,6 +573,8 @@ static bool __ref msm_pm_spm_power_collapse(
 #endif
 	}
 
+	init_cpu_foot_print(cpu, notify_rpm);
+
 	collapsed = msm_pm_l2x0_power_collapse();
 
 	set_cpu_foot_print(cpu, 0xa);
@@ -697,11 +708,7 @@ static bool msm_pm_power_collapse(bool from_idle)
 	if (cpu_online(cpu))
 		saved_acpuclk_rate = acpuclk_power_collapse();
 	else {
-#ifdef CONFIG_APQ8064_ONLY 
-		saved_acpuclk_rate = acpuclk_8960_power_collapse();
-#else
 		saved_acpuclk_rate = 0;
-#endif
 	}
 
 	if ((!from_idle) && (MSM_PM_DEBUG_CLOCK & msm_pm_debug_mask))

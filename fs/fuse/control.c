@@ -13,6 +13,10 @@
 
 #define FUSE_CTL_SUPER_MAGIC 0x65735543
 
+/*
+ * This is non-NULL when the single instance of the control filesystem
+ * exists.  Protected by fuse_mutex
+ */
 static struct super_block *fuse_control_sb;
 
 static struct fuse_conn *fuse_ctl_file_conn_get(struct file *file)
@@ -103,7 +107,7 @@ static ssize_t fuse_conn_max_background_read(struct file *file,
 					     loff_t *ppos)
 {
 	struct fuse_conn *fc;
-	unsigned val = 0;
+	unsigned val;
 
 	fc = fuse_ctl_file_conn_get(file);
 	if (!fc)
@@ -119,7 +123,7 @@ static ssize_t fuse_conn_max_background_write(struct file *file,
 					      const char __user *buf,
 					      size_t count, loff_t *ppos)
 {
-	unsigned val = 0;
+	unsigned val;
 	ssize_t ret;
 
 	ret = fuse_conn_limit_write(file, buf, count, ppos, &val,
@@ -140,7 +144,7 @@ static ssize_t fuse_conn_congestion_threshold_read(struct file *file,
 						   loff_t *ppos)
 {
 	struct fuse_conn *fc;
-	unsigned val = 0;
+	unsigned val;
 
 	fc = fuse_ctl_file_conn_get(file);
 	if (!fc)
@@ -156,7 +160,7 @@ static ssize_t fuse_conn_congestion_threshold_write(struct file *file,
 						    const char __user *buf,
 						    size_t count, loff_t *ppos)
 {
-	unsigned val = 0;
+	unsigned val;
 	ssize_t ret;
 
 	ret = fuse_conn_limit_write(file, buf, count, ppos, &val,
@@ -223,7 +227,7 @@ static struct dentry *fuse_ctl_add_dentry(struct dentry *parent,
 	inode->i_uid = fc->user_id;
 	inode->i_gid = fc->group_id;
 	inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
-	
+	/* setting ->i_op to NULL is not allowed */
 	if (iop)
 		inode->i_op = iop;
 	inode->i_fop = fop;
@@ -233,6 +237,10 @@ static struct dentry *fuse_ctl_add_dentry(struct dentry *parent,
 	return dentry;
 }
 
+/*
+ * Add a connection to the control filesystem (if it exists).  Caller
+ * must hold fuse_mutex
+ */
 int fuse_ctl_add_conn(struct fuse_conn *fc)
 {
 	struct dentry *parent;
@@ -268,6 +276,10 @@ int fuse_ctl_add_conn(struct fuse_conn *fc)
 	return -ENOMEM;
 }
 
+/*
+ * Remove a connection from the control filesystem (if it exists).
+ * Caller must hold fuse_mutex
+ */
 void fuse_ctl_remove_conn(struct fuse_conn *fc)
 {
 	int i;
