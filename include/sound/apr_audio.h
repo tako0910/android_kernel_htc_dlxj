@@ -997,8 +997,6 @@ struct asm_stream_cmd_open_read {
 	u32            format;
 } __attribute__((packed));
 
-<<<<<<< HEAD
-=======
 struct asm_stream_cmd_open_read_v2_1 {
 	struct apr_hdr hdr;
 	u32            uMode;
@@ -1010,7 +1008,6 @@ struct asm_stream_cmd_open_read_v2_1 {
 } __packed;
 
 /* Supported formats */
->>>>>>> a5d327d... ASoc: msm: Add low latency playback and recording support.
 #define LINEAR_PCM   0x00010BE5
 #define DTMF         0x00010BE6
 #define ADPCM        0x00010BE7
