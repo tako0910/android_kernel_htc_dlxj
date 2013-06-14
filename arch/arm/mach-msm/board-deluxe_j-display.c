@@ -1180,9 +1180,18 @@ static int deluxe_j_lcd_off(struct platform_device *pdev)
         mipi_dsi_cmdlist_put(&cmdreq);
 */
 
-        PR_DISP_INFO("%s\n", __func__);
+        cmdreq.cmds = sharp_display_off_cmds;
+        cmdreq.cmds_cnt = ARRAY_SIZE(sharp_display_off_cmds);
+        cmdreq.flags = CMD_REQ_COMMIT;
+        cmdreq.rlen = 0;
+        cmdreq.cb = NULL;
+
+        mipi_dsi_cmdlist_put(&cmdreq);
 
 	resume_blk = 1;
+
+        PR_DISP_INFO("%s\n", __func__);
+
 	return 0;
 }
 static int __devinit deluxe_j_lcd_probe(struct platform_device *pdev)
@@ -1247,19 +1256,6 @@ static void deluxe_j_display_on(struct msm_fb_data_type *mfd)
 		PR_DISP_INFO("%s\n", __func__);
 	}
 	first_init_display = 0;
-}
-
-static void deluxe_j_display_off(struct msm_fb_data_type *mfd)
-{
-        cmdreq.cmds = sharp_display_off_cmds;
-        cmdreq.cmds_cnt = ARRAY_SIZE(sharp_display_off_cmds);
-        cmdreq.flags = CMD_REQ_COMMIT;
-        cmdreq.rlen = 0;
-        cmdreq.cb = NULL;
-
-        mipi_dsi_cmdlist_put(&cmdreq);
-
-	PR_DISP_INFO("%s\n", __func__);
 }
 
 #define PWM_MIN                   13
@@ -1355,7 +1351,6 @@ static struct msm_fb_panel_data deluxe_j_panel_data = {
 	.off	= deluxe_j_lcd_off,
 	.set_backlight = deluxe_j_set_backlight,
 	.display_on = deluxe_j_display_on,
-	.display_off = deluxe_j_display_off,
 };
 
 //static struct msm_panel_info pinfo;
