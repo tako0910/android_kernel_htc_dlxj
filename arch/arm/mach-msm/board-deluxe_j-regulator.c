@@ -23,10 +23,9 @@ VREG_CONSUMERS(L1) = {
 };
 VREG_CONSUMERS(L2) = {
 	REGULATOR_SUPPLY("8921_l2",		NULL),
-	REGULATOR_SUPPLY("dsi_pll_vdda",        "mdp.0"), // CRP: Is thie a good change?
-	REGULATOR_SUPPLY("mipi_csi_vdd",	"msm_csiphy.0"),
+    	REGULATOR_SUPPLY("mipi_csi_vdd",	"msm_csiphy.0"),
 	REGULATOR_SUPPLY("mipi_csi_vdd",	"msm_csiphy.1"),
-	REGULATOR_SUPPLY("mipi_csi_vdd",        "msm_csiphy.2"),
+   	REGULATOR_SUPPLY("mipi_csi_vdd",	"msm_csiphy.2"),
 	REGULATOR_SUPPLY("lvds_pll_vdda",	"lvds.0"),
 	REGULATOR_SUPPLY("dsi1_pll_vdda",	"mipi_dsi.1"),
 };
@@ -103,7 +102,6 @@ VREG_CONSUMERS(L23) = {
 	REGULATOR_SUPPLY("8921_l23",		NULL),
 	REGULATOR_SUPPLY("pll_vdd",		"pil_qdsp6v4.1"),
 	REGULATOR_SUPPLY("pll_vdd",		"pil_qdsp6v4.2"),
-	REGULATOR_SUPPLY("dsi_pll_vddio",       "mdp.0"), // CRP: Is this a good change??
 
 };
 VREG_CONSUMERS(L24) = {
