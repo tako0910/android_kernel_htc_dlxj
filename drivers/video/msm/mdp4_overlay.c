@@ -3623,7 +3623,7 @@ int mdp4_overlay_unset(struct fb_info *info, int ndx)
 	if (pipe->flags & MDP_SECURE_OVERLAY_SESSION)
 		mfd->sec_active = FALSE;
 
-	mdp4_overlay_pipe_free(pipe, 0);
+	mdp4_overlay_pipe_free(pipe);
 
 	/* mdp4_mixer_stage_down will remove pipe for mixer 1 and 2*/
 	if (mixer > MDP4_MIXER0 && !hdmi_prim_display) {
