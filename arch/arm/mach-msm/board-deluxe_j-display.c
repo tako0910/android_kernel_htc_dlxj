@@ -325,7 +325,7 @@ backlight_gpio_enable(bool on)
 
 	if (on == backlight_gpio_is_on)
 		return;
-
+/*
 	if (system_rev == XB) {
 		gpio_tlmm_config(GPIO_CFG(MBAT_IN_XA_XB, 0, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA), GPIO_CFG_ENABLE);
 		gpio_set_value(MBAT_IN_XA_XB, on ? 1 : 0);
@@ -335,7 +335,7 @@ backlight_gpio_enable(bool on)
 		gpio_set_value(BL_HW_EN_XC_XD, on ? 1 : 0);
 		msleep(1);
 	}
-
+*/
 	backlight_gpio_is_on = on;
 }
 
