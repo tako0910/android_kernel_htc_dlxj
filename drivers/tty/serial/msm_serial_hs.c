@@ -635,60 +635,9 @@ static void msm_hs_set_termios(struct uart_port *uport,
 
 	spin_lock_irqsave(&uport->lock, flags);
 
-	msm_uport->termios_in_progress = true;
-
-	/* Disable RxStale Event Mechanism */
-	msm_hs_write(uport, UARTDM_CR_ADDR, STALE_EVENT_DISABLE);
-
-	/* Disable all UART interrupts */
-	msm_hs_write(uport, UARTDM_IMR_ADDR, 0);
-
-	/* Enable RFR so remote UART doesn't send any data. */
-	msm_hs_write(uport, UARTDM_CR_ADDR, RFR_HIGH);
-
-	/*
-	 * It is quite possible that previous graceful flush is not
-	 * completed and set_termios() request has been received.
-	 * Hence wait here to make sure that it is completed and
-	 * queued one more UART RX CMD with ADM.
-	 */
-	if (msm_uport->rx.dma_in_flight &&
-			msm_uport->rx.flush == FLUSH_DATA_READY) {
-		spin_unlock_irqrestore(&uport->lock, flags);
-		ret = wait_event_timeout(msm_uport->rx.wait,
-			msm_uport->rx.flush == FLUSH_NONE,
-			RX_FLUSH_COMPLETE_TIMEOUT);
-		if (!ret) {
-			pr_err("%s(): timeout for Rx cmd completion\n",
-							__func__);
-			spin_lock_irqsave(&uport->lock, flags);
-			print_uart_registers(msm_uport);
-			spin_unlock_irqrestore(&uport->lock, flags);
-			BUG_ON(1);
-		}
-
-		spin_lock_irqsave(&uport->lock, flags);
-	}
-
-	/*
-	 * Wait for queued Rx CMD to ADM driver to be programmed
-	 * with ADM hardware before going and changing UART baud rate.
-	 * Below udelay(500) is required as exec_cmd callback is called
-	 * before actually programming ADM hardware with cmd.
-	 */
-	if (msm_uport->rx.dma_in_flight) {
-		spin_unlock_irqrestore(&uport->lock, flags);
-		ret = wait_event_timeout(msm_uport->rx.wait,
-			msm_uport->rx.cmd_exec == true,
-			RX_FLUSH_COMPLETE_TIMEOUT);
-		if (!ret)
-			pr_err("%s(): timeout for rx cmd to be program\n",
-								__func__);
-		else
-			udelay(500);
-
-		spin_lock_irqsave(&uport->lock, flags);
-	}
+	data = msm_hs_read(uport, UARTDM_DMEN_ADDR);
+	data &= ~UARTDM_RX_DM_EN_BMSK;
+	msm_hs_write(uport, UARTDM_DMEN_ADDR, data);
 
 	
 	bps = uart_get_baud_rate(uport, termios, oldtermios, 200, 4000000);
@@ -776,8 +725,7 @@ static void msm_hs_set_termios(struct uart_port *uport,
 		msm_dmov_flush(msm_uport->dma_rx_channel, 0);
 	}
 
-	/* Disable RFR so remote UART can send data. */
-	msm_hs_write(uport, UARTDM_CR_ADDR, RFR_LOW);
+	msm_hs_write(uport, UARTDM_IMR_ADDR, msm_uport->imr_reg);
 	mb();
 	spin_unlock_irqrestore(&uport->lock, flags);
 }
@@ -810,7 +758,7 @@ static void msm_hs_stop_rx_locked(struct uart_port *uport)
 	msm_hs_write(uport, UARTDM_CR_ADDR, STALE_EVENT_DISABLE);
 
 	/* Enable RFR so remote UART doesn't send any data. */
-	msm_hs_write(uport, UARTDM_CR_ADDR, RFR_HIGH);
+	msm_hs_write(uport, UARTDM_CR_ADDR, RFR_LOW);
 
 	/* Allow to receive all pending data from UART RX FIFO */
 	udelay(100);
@@ -903,11 +851,7 @@ static void msm_hs_start_rx_locked(struct uart_port *uport)
 	if (buffer_pending && hs_serial_debug_mask)
 		printk(KERN_ERR "Error: rx started in buffer state = %x",
 		       buffer_pending);
-	/*
-	 * Zeroed out UART RX software buffer which would help to
-	 * check how much data is copied if there is any RX stall.
-	 */
-	memset(msm_uport->rx.buffer, 0x00, UARTDM_RX_BUF_SIZE);
+
 	msm_hs_write(uport, UARTDM_CR_ADDR, RESET_STALE_INT);
 	msm_hs_write(uport, UARTDM_DMRX_ADDR, UARTDM_RX_BUF_SIZE);
 	msm_hs_write(uport, UARTDM_CR_ADDR, STALE_EVENT_ENABLE);
@@ -1024,19 +968,6 @@ static void msm_serial_hs_rx_tlet(unsigned long tlet_ptr)
 			retval = tty_insert_flip_char(tty, 0, TTY_PARITY);
 			if (!retval)
 				msm_uport->rx.buffer_pending |= TTY_PARITY;
-		}
-	}
-
-	if (unlikely(status & UARTDM_SR_RX_BREAK_BMSK)) {
-		if (hs_serial_debug_mask)
-			printk(KERN_WARNING "msm_serial_hs: Rx break\n");
-		uport->icount.brk++;
-		error_f = 1;
-		msm_hs_write(uport, UARTDM_CR_ADDR, RESET_BREAK_INT);
-		if (!(uport->ignore_status_mask & IGNBRK)) {
-			retval = tty_insert_flip_char(tty, 0, TTY_BREAK);
-			if (!retval)
-				msm_uport->rx.buffer_pending |= TTY_BREAK;
 		}
 	}
 
@@ -1584,29 +1515,7 @@ static int msm_hs_startup(struct uart_port *uport)
 		return ret;
 	}
 
-	/* Stop remote UART to send data by setting RFR GPIO to LOW. */
-	msm_hs_write(uport, UARTDM_CR_ADDR, RFR_HIGH);
-
-	/*
-	 * Set RX_BREAK_ZERO_CHAR_OFF and RX_ERROR_CHAR_OFF
-	 * so any rx_break and character having parity of framing
-	 * error don't enter inside UART RX FIFO.
-	 */
-	data = msm_hs_read(uport, UARTDM_MR2_ADDR);
-	data |= (UARTDM_MR2_RX_BREAK_ZERO_CHAR_OFF |
-			UARTDM_MR2_RX_ERROR_CHAR_OFF);
-	msm_hs_write(uport, UARTDM_MR2_ADDR, data);
-	mb();
-
-	if (pdata && pdata->config_gpio) {
-		ret = msm_hs_config_uart_gpios(uport);
-		if (ret)
-			goto deinit_uart_clk;
-	} else {
-		pr_debug("%s(): UART GPIOs not specified.\n", __func__);
-	}
-
-	/* Set auto RFR Level */
+	
 	data = msm_hs_read(uport, UARTDM_MR1_ADDR);
 	data &= ~UARTDM_MR1_AUTO_RFR_LEVEL1_BMSK;
 	data &= ~UARTDM_MR1_AUTO_RFR_LEVEL0_BMSK;
@@ -1632,7 +1541,8 @@ static int msm_hs_startup(struct uart_port *uport)
 	msm_hs_write(uport, UARTDM_CR_ADDR, RESET_BREAK_INT);
 	msm_hs_write(uport, UARTDM_CR_ADDR, RESET_STALE_INT);
 	msm_hs_write(uport, UARTDM_CR_ADDR, RESET_CTS);
-	/* Turn on Uart Receiver */
+	msm_hs_write(uport, UARTDM_CR_ADDR, RFR_LOW);
+	
 	msm_hs_write(uport, UARTDM_CR_ADDR, UARTDM_CR_RX_EN_BMSK);
 
 	
@@ -1693,19 +1603,6 @@ static int msm_hs_startup(struct uart_port *uport)
 	spin_lock_irqsave(&uport->lock, flags);
 
 	msm_hs_start_rx_locked(uport);
-
-	/*
-	 * Re-enable UART_DM_MR2: 8 and 9 bits
-	 */
-	data = msm_hs_read(uport, UARTDM_MR2_ADDR);
-	data &= ~(UARTDM_MR2_RX_BREAK_ZERO_CHAR_OFF |
-			UARTDM_MR2_RX_ERROR_CHAR_OFF);
-
-	msm_hs_write(uport, UARTDM_MR2_ADDR, data);
-	mb();
-
-	/* Allow remote UART to send data by setting RFR GPIO to HIGH. */
-	msm_hs_write(uport, UARTDM_CR_ADDR, RFR_LOW);
 
 	spin_unlock_irqrestore(&uport->lock, flags);
 	ret = pm_runtime_set_active(uport->dev);
