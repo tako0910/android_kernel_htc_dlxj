@@ -952,6 +952,7 @@ struct vfe32_ctrl_type {
 	uint32_t frame_skip_cnt;
 	uint32_t frame_skip_pattern;
 	uint32_t snapshot_frame_cnt;
+	vfe_camera_mode_type vfe_camera_mode; 
 };
 
 #define statsAeNum      0
