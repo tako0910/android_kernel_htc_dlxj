@@ -3291,97 +3291,6 @@ error:
 }
 #endif
 
-#ifdef CONFIG_RAWCHIP
-int rawchip_init(void *arg)
-{
-	struct msm_cam_media_controller *pmctl = NULL;
-	struct msm_sensor_ctrl_t *s_ctrl = NULL;
-	struct rawchip_sensor_data rawchip_data;
-	int res = MSM_SENSOR_RES_FULL;
-	struct timespec ts_start, ts_end;
-
-	pr_info("%s: E\n", __func__);
-
-	if (g_server_dev.mctl[0].handle == 0) {
-		pr_err("%s: cannot get mctl handle", __func__);
-		return -EINVAL;
-	}
-
-	pmctl = msm_camera_get_mctl(g_server_dev.mctl[0].handle);
-	if (!pmctl) {
-		pr_err("%s: invalid mctl controller", __func__);
-		return -EINVAL;
-	}
-
-	s_ctrl = get_sctrl(pmctl->sensor_sdev);
-	if (!s_ctrl) {
-		pr_err("%s: invalid sensor contl", __func__);
-		return -EINVAL;
-	}
-#if 1
-	rawchip_data.sensor_name = s_ctrl->sensordata->sensor_name;
-	rawchip_data.datatype = s_ctrl->curr_csi_params->csid_params.lut_params.vc_cfg->dt;
-	rawchip_data.lane_cnt = s_ctrl->curr_csi_params->csid_params.lane_cnt;
-	rawchip_data.pixel_clk = s_ctrl->msm_sensor_reg->output_settings[res].op_pixel_clk;
-	rawchip_data.mirror_flip = s_ctrl->mirror_flip;
-	rawchip_data.width = s_ctrl->msm_sensor_reg->output_settings[res].x_output;
-	rawchip_data.height = s_ctrl->msm_sensor_reg->output_settings[res].y_output;
-	rawchip_data.line_length_pclk = s_ctrl->msm_sensor_reg->output_settings[res].line_length_pclk;
-	rawchip_data.frame_length_lines = s_ctrl->msm_sensor_reg->output_settings[res].frame_length_lines;
-	rawchip_data.x_addr_start = s_ctrl->msm_sensor_reg->output_settings[res].x_addr_start;
-	rawchip_data.y_addr_start = s_ctrl->msm_sensor_reg->output_settings[res].y_addr_start;
-	rawchip_data.x_addr_end = s_ctrl->msm_sensor_reg->output_settings[res].x_addr_end;
-	rawchip_data.y_addr_end = s_ctrl->msm_sensor_reg->output_settings[res].y_addr_end;
-	rawchip_data.x_even_inc = s_ctrl->msm_sensor_reg->output_settings[res].x_even_inc;
-	rawchip_data.x_odd_inc = s_ctrl->msm_sensor_reg->output_settings[res].x_odd_inc;
-	rawchip_data.y_even_inc = s_ctrl->msm_sensor_reg->output_settings[res].y_even_inc;
-	rawchip_data.y_odd_inc = s_ctrl->msm_sensor_reg->output_settings[res].y_odd_inc;
-	rawchip_data.binning_rawchip = s_ctrl->msm_sensor_reg->output_settings[res].binning_rawchip;
-	rawchip_data.fullsize_width = s_ctrl->msm_sensor_reg->output_settings[MSM_SENSOR_RES_FULL].x_output;
-	rawchip_data.fullsize_height = s_ctrl->msm_sensor_reg->output_settings[MSM_SENSOR_RES_FULL].y_output;
-	rawchip_data.fullsize_line_length_pclk =
-		s_ctrl->msm_sensor_reg->output_settings[MSM_SENSOR_RES_FULL].line_length_pclk;
-	rawchip_data.fullsize_frame_length_lines =
-		s_ctrl->msm_sensor_reg->output_settings[MSM_SENSOR_RES_FULL].frame_length_lines;
-	rawchip_data.use_rawchip = s_ctrl->sensordata->use_rawchip;
-#else /* for debug */
-	rawchip_data.sensor_name = s_ctrl->sensordata->sensor_name;
-	rawchip_data.datatype = CSI_RAW10;
-	rawchip_data.lane_cnt = 4;
-	rawchip_data.pixel_clk = 259200000;
-	rawchip_data.mirror_flip = CAMERA_SENSOR_NONE;
-	rawchip_data.width = 0xCD0;
-	rawchip_data.height = 0x9A0;
-	rawchip_data.line_length_pclk = 0xD70;
-	rawchip_data.frame_length_lines = 0x9D0;
-	rawchip_data.x_addr_start = 0;
-	rawchip_data.y_addr_start = 0;
-	rawchip_data.x_addr_end = 0xCCF;
-	rawchip_data.y_addr_end = 0x99F;
-	rawchip_data.x_even_inc = 1;
-	rawchip_data.x_odd_inc = 1;
-	rawchip_data.y_even_inc = 1;
-	rawchip_data.y_odd_inc = 1;
-	rawchip_data.binning_rawchip = 0x11;
-	rawchip_data.fullsize_width = 0xCD0;
-	rawchip_data.fullsize_height = 0x9A0;
-	rawchip_data.fullsize_line_length_pclk = 0xD70;
-	rawchip_data.fullsize_frame_length_lines = 0x9D0;
-	rawchip_data.use_rawchip = RAWCHIP_ENABLE;
-#endif
-
-	pr_info("%s: sensor_name = %s, width = %d, height = %d\n", __func__,
-		rawchip_data.sensor_name, rawchip_data.width, rawchip_data.height);
-
-	ktime_get_ts(&ts_start);
-	rawchip_set_size(rawchip_data);
-	ktime_get_ts(&ts_end);
-	pr_info("%s: %ld ms\n", __func__,
-		(ts_end.tv_sec-ts_start.tv_sec)*1000+(ts_end.tv_nsec-ts_start.tv_nsec)/1000000);
-
-	return 0;
-}
-#endif
 
 int msm_setup_v4l2_event_queue(struct v4l2_fh *eventHandle,
 	struct video_device *pvdev)
@@ -3478,6 +3387,16 @@ config_setup_fail:
 	return rc;
 
 }
+
+static void msm_cam_server_send_error_evt(
+		struct msm_cam_media_controller *pmctl, int evt_type)
+{
+	struct v4l2_event v4l2_ev;
+	v4l2_ev.type = evt_type;
+	ktime_get_ts(&v4l2_ev.timestamp);
+	v4l2_event_queue(pmctl->pcam_ptr->pvdev, &v4l2_ev);
+}
+
 static void msm_cam_server_subdev_notify(struct v4l2_subdev *sd,
 				unsigned int notification, void *arg)
 {
@@ -3485,6 +3404,7 @@ static void msm_cam_server_subdev_notify(struct v4l2_subdev *sd,
 	struct msm_sensor_ctrl_t *s_ctrl;
 	struct msm_camera_sensor_info *sinfo;
 	struct msm_camera_device_platform_data *camdev;
+	struct msm_cam_media_controller *p_mctl = NULL;
 	uint8_t csid_core = 0;
 
 	if (notification == NOTIFY_CID_CHANGE ||
@@ -3588,7 +3508,15 @@ static void msm_cam_server_subdev_notify(struct v4l2_subdev *sd,
 	case NOTIFY_GESTURE_CAM_EVT:
 		rc = v4l2_subdev_call(g_server_dev.gesture_device,
 			core, ioctl, VIDIOC_MSM_GESTURE_CAM_EVT, arg);
-		break;		
+		break;
+	case NOTIFY_VFE_CAMIF_ERROR: {
+		p_mctl = msm_camera_get_mctl(g_server_dev.pcam_active->mctl_handle);
+		if (p_mctl)
+			msm_cam_server_send_error_evt(p_mctl,
+				V4L2_EVENT_PRIVATE_START +
+				MSM_CAM_APP_NOTIFY_ERROR_EVENT);
+		break;
+	}
 	default:
 		break;
 	}
@@ -3937,6 +3865,8 @@ static int msm_actuator_probe(struct msm_actuator_info *actuator_info,
 				       (void *)act_sdev);
 
 	is_actuator_probe_success = 1; 
+	pr_info("%s: actuator_info->board_info->type=%s", __func__, actuator_info->board_info->type);
+	pr_info("%s: actuator_info->board_info->addr=0x%x", __func__, actuator_info->board_info->addr);
 
 	return rc;
 
