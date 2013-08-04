@@ -1164,26 +1164,10 @@ int32_t ar0260_i2c_probe(struct i2c_client *client,
 	const struct i2c_device_id *id)
 {
 	int	rc = 0;
-	
-	
-	int max_probe_count = 1;
-	int probe_count = 0;
-
 	pr_info("%s\n", __func__);
-
-sensor_probe_retry:
 	rc = msm_sensor_i2c_probe(client, id);
 	if(rc >= 0)
 		ar0260_sysfs_init();
-	else {
-		
-		probe_count++;
-		if(probe_count < max_probe_count) {
-			pr_info("%s  apply sensor probe retry mechanism , probe_count=%d\n", __func__, probe_count);
-			goto sensor_probe_retry;
-		}
-	}
-
 	pr_info("%s: rc(%d)\n", __func__, rc);
 	return rc;
 }
@@ -1271,26 +1255,6 @@ static int ar0260_read_fuseid(struct sensor_cfg_data *cdata,
 
 }
 
-int32_t aptina_write_exp_gain(struct msm_sensor_ctrl_t *s_ctrl,
-		int mode, uint16_t gain, uint16_t dig_gain, uint32_t line) 
-{
-	CDBG("%s: called\n", __func__);
-	if(line > s_ctrl->sensor_exp_gain_info->sensor_max_linecount)
-		line = s_ctrl->sensor_exp_gain_info->sensor_max_linecount;
-
-	s_ctrl->func_tbl->sensor_group_hold_on(s_ctrl);
-
-	msm_camera_i2c_write(s_ctrl->sensor_i2c_client,
-		s_ctrl->sensor_exp_gain_info->coarse_int_time_addr, line,
-		MSM_CAMERA_I2C_WORD_DATA);
-
-	msm_camera_i2c_write(s_ctrl->sensor_i2c_client,
-		s_ctrl->sensor_exp_gain_info->global_gain_addr, gain,
-		MSM_CAMERA_I2C_WORD_DATA);
-	s_ctrl->func_tbl->sensor_group_hold_off(s_ctrl);
-	return 0;
-}
-
 static int __init msm_sensor_init_module(void)
 {
 	pr_info("%s\n", __func__);
@@ -1317,8 +1281,8 @@ static struct msm_sensor_fn_t ar0260_func_tbl = {
 	.sensor_group_hold_on = msm_sensor_group_hold_on,
 	.sensor_group_hold_off = msm_sensor_group_hold_off,
 	.sensor_set_fps = msm_sensor_set_fps,
-	.sensor_write_exp_gain_ex = aptina_write_exp_gain, 
-	.sensor_write_snapshot_exp_gain_ex = aptina_write_exp_gain, 
+	.sensor_write_exp_gain_ex = msm_sensor_write_exp_gain1_ex,
+	.sensor_write_snapshot_exp_gain_ex = msm_sensor_write_exp_gain1_ex,
 	.sensor_setting = msm_sensor_setting_parallel,
 	.sensor_set_sensor_mode = msm_sensor_set_sensor_mode,
 	.sensor_mode_init = msm_sensor_mode_init,

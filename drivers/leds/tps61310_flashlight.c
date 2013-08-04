@@ -47,6 +47,7 @@ struct tps61310_data {
 	uint8_t				enable_FLT_1500mA;
 	uint8_t				disable_tx_mask;
 	uint32_t			power_save;
+	uint32_t			power_save_2;
 };
 
 static struct i2c_client *this_client;
@@ -146,11 +147,33 @@ static int tps61310_i2c_command(uint8_t address, uint8_t data)
 
 static int flashlight_turn_off(void)
 {
+	int status;
 	FLT_INFO_LOG("%s\n", __func__);
 	gpio_set_value_cansleep(this_tps61310->strb0, 0);
 	gpio_set_value_cansleep(this_tps61310->strb1, 1);
 	tps61310_i2c_command(0x02, 0x08);
 	tps61310_i2c_command(0x01, 0x00);
+	FLT_INFO_LOG("%s %d\n", __func__,this_tps61310->mode_status);
+	if (this_tps61310->power_save) {
+		status = this_tps61310->mode_status;
+		if (status == 2 || (status >= 10 && status <=16)) {
+			FLT_INFO_LOG("Disable power saving\n");
+			gpio_set_value_cansleep(this_tps61310->power_save, 0);
+		} else if (status == FL_MODE_PRE_FLASH) {
+			FLT_INFO_LOG("Enable power saving\n");
+			gpio_set_value_cansleep(this_tps61310->power_save, 1);
+		}
+	}
+	if (this_tps61310->power_save_2) {
+		status = this_tps61310->mode_status;
+		if (status == 2 || (status >= 10 && status <=16)) {
+			FLT_INFO_LOG("Disable power saving\n");
+			gpio_set_value_cansleep(this_tps61310->power_save_2, 0);
+		} else if (status == FL_MODE_PRE_FLASH) {
+			FLT_INFO_LOG("Enable power saving\n");
+			gpio_set_value_cansleep(this_tps61310->power_save_2, 1);
+		}
+	}
 	this_tps61310->mode_status = FL_MODE_OFF;
 	return 0;
 }
@@ -193,6 +216,7 @@ int tps61310_flashlight_control(int mode)
 	}
 	if (this_tps61310->led_count == 1) {
 		if (this_tps61310->enable_FLT_1500mA) {
+#if defined CONFIG_FLASHLIGHT_1500mA
 			switch (mode) {
 			case FL_MODE_OFF:
 				flashlight_turn_off();
@@ -278,6 +302,41 @@ int tps61310_flashlight_control(int mode)
 				gpio_set_value_cansleep(this_tps61310->strb1, 1);
 				tps61310_i2c_command(0x01, 0x40);
 			break;
+			case FL_MODE_VIDEO_TORCH:
+				tps61310_i2c_command(0x05, 0x6A);
+				tps61310_i2c_command(0x00, 0x04);
+				gpio_set_value_cansleep(this_tps61310->strb0, 0);
+				gpio_set_value_cansleep(this_tps61310->strb1, 1);
+				tps61310_i2c_command(0x01, 0x40);
+			break;
+			case FL_MODE_VIDEO_TORCH_1:
+				tps61310_i2c_command(0x05, 0x6A);
+				tps61310_i2c_command(0x00, 0x01);
+				gpio_set_value_cansleep(this_tps61310->strb0, 0);
+				gpio_set_value_cansleep(this_tps61310->strb1, 1);
+				tps61310_i2c_command(0x01, 0x40);
+			break;
+			case FL_MODE_VIDEO_TORCH_2:
+				tps61310_i2c_command(0x05, 0x6A);
+				tps61310_i2c_command(0x00, 0x02);
+				gpio_set_value_cansleep(this_tps61310->strb0, 0);
+				gpio_set_value_cansleep(this_tps61310->strb1, 1);
+				tps61310_i2c_command(0x01, 0x40);
+			break;
+			case FL_MODE_VIDEO_TORCH_3:
+				tps61310_i2c_command(0x05, 0x6A);
+				tps61310_i2c_command(0x00, 0x03);
+				gpio_set_value_cansleep(this_tps61310->strb0, 0);
+				gpio_set_value_cansleep(this_tps61310->strb1, 1);
+				tps61310_i2c_command(0x01, 0x40);
+			break;
+			case FL_MODE_VIDEO_TORCH_4:
+				tps61310_i2c_command(0x05, 0x6A);
+				tps61310_i2c_command(0x00, 0x04);
+				gpio_set_value_cansleep(this_tps61310->strb0, 0);
+				gpio_set_value_cansleep(this_tps61310->strb1, 1);
+				tps61310_i2c_command(0x01, 0x40);
+			break;
 			case FL_MODE_TORCH:
 				gpio_set_value_cansleep(this_tps61310->strb0, 0);
 				gpio_set_value_cansleep(this_tps61310->strb1, 1);
@@ -311,7 +370,9 @@ int tps61310_flashlight_control(int mode)
 				ret = -EINVAL;
 			break;
 			}
+#endif
 		} else {
+#if !defined CONFIG_FLASHLIGHT_1500mA
 			switch (mode) {
 			case FL_MODE_OFF:
 				flashlight_turn_off();
@@ -395,6 +456,41 @@ int tps61310_flashlight_control(int mode)
 				gpio_set_value_cansleep(this_tps61310->strb1, 1);
 				tps61310_i2c_command(0x01, 0x40);
 			break;
+			case FL_MODE_VIDEO_TORCH:
+				tps61310_i2c_command(0x05, 0x6A);
+				tps61310_i2c_command(0x00, 0x04);
+				gpio_set_value_cansleep(this_tps61310->strb0, 0);
+				gpio_set_value_cansleep(this_tps61310->strb1, 1);
+				tps61310_i2c_command(0x01, 0x40);
+			break;
+			case FL_MODE_VIDEO_TORCH_1:
+				tps61310_i2c_command(0x05, 0x6A);
+				tps61310_i2c_command(0x00, 0x01);
+				gpio_set_value_cansleep(this_tps61310->strb0, 0);
+				gpio_set_value_cansleep(this_tps61310->strb1, 1);
+				tps61310_i2c_command(0x01, 0x40);
+			break;
+			case FL_MODE_VIDEO_TORCH_2:
+				tps61310_i2c_command(0x05, 0x6A);
+				tps61310_i2c_command(0x00, 0x02);
+				gpio_set_value_cansleep(this_tps61310->strb0, 0);
+				gpio_set_value_cansleep(this_tps61310->strb1, 1);
+				tps61310_i2c_command(0x01, 0x40);
+			break;
+			case FL_MODE_VIDEO_TORCH_3:
+				tps61310_i2c_command(0x05, 0x6A);
+				tps61310_i2c_command(0x00, 0x03);
+				gpio_set_value_cansleep(this_tps61310->strb0, 0);
+				gpio_set_value_cansleep(this_tps61310->strb1, 1);
+				tps61310_i2c_command(0x01, 0x40);
+			break;
+			case FL_MODE_VIDEO_TORCH_4:
+				tps61310_i2c_command(0x05, 0x6A);
+				tps61310_i2c_command(0x00, 0x04);
+				gpio_set_value_cansleep(this_tps61310->strb0, 0);
+				gpio_set_value_cansleep(this_tps61310->strb1, 1);
+				tps61310_i2c_command(0x01, 0x40);
+			break;
 			case FL_MODE_TORCH:
 				tps61310_i2c_command(0x05, 0x6A);
 				tps61310_i2c_command(0x00, 0x05);
@@ -422,8 +518,10 @@ int tps61310_flashlight_control(int mode)
 				ret = -EINVAL;
 			break;
 			}
+#endif
 		}
 	} else if (this_tps61310->led_count == 2) {
+#if defined CONFIG_TWO_FLASHLIGHT
 	switch (mode) {
 	case FL_MODE_OFF:
 		flashlight_turn_off();
@@ -515,6 +613,13 @@ int tps61310_flashlight_control(int mode)
 		gpio_set_value_cansleep(this_tps61310->strb1, 1);
 		tps61310_i2c_command(0x01, 0x40);
 	break;
+	case FL_MODE_VIDEO_TORCH:
+		tps61310_i2c_command(0x05, 0x6B);
+		tps61310_i2c_command(0x00, 0x12);
+		gpio_set_value_cansleep(this_tps61310->strb0, 0);
+		gpio_set_value_cansleep(this_tps61310->strb1, 1);
+		tps61310_i2c_command(0x01, 0x40);
+	break;
 	case FL_MODE_TORCH:
 		tps61310_i2c_command(0x05, 0x6B);
 		tps61310_i2c_command(0x00, 0x1B);
@@ -557,7 +662,9 @@ int tps61310_flashlight_control(int mode)
 		ret = -EINVAL;
 	break;
 	}
+#endif
 		}
+
 	FLT_INFO_LOG("%s: mode: %d\n", __func__, mode);
 	this_tps61310->mode_status = mode;
 	mutex_unlock(&tps61310_mutex);
@@ -624,6 +731,10 @@ static void flashlight_early_suspend(struct early_suspend *handler)
 	FLT_INFO_LOG("%s\n", __func__);
 	if (this_tps61310 != NULL && this_tps61310->mode_status)
 		flashlight_turn_off();
+	if (this_tps61310->power_save)
+		gpio_set_value_cansleep(this_tps61310->power_save, 0);
+	if (this_tps61310->power_save_2)
+		gpio_set_value_cansleep(this_tps61310->power_save_2, 0);
 }
 
 static void flashlight_late_resume(struct early_suspend *handler)
@@ -684,6 +795,7 @@ static int tps61310_probe(struct i2c_client *client,
 	tps61310->enable_FLT_1500mA = pdata->enable_FLT_1500mA;
 	tps61310->disable_tx_mask     = pdata->disable_tx_mask;
 	tps61310->power_save              = pdata->power_save;
+	tps61310->power_save_2              = pdata->power_save_2;
 
 	if (tps61310->flash_sw_timeout <= 0)
 		tps61310->flash_sw_timeout = 600;
@@ -724,7 +836,18 @@ static int tps61310_probe(struct i2c_client *client,
 		FLT_INFO_LOG("%s reset pin exist\n", __func__);
 	else
 		FLT_INFO_LOG("%s no reset pin\n", __func__);
-
+	if (this_tps61310->power_save) {
+		FLT_INFO_LOG("%s power save pin exist\n", __func__);
+		gpio_set_value_cansleep(this_tps61310->power_save, 0);
+	}
+	else
+		FLT_INFO_LOG("%s no power save pin\n", __func__);
+	if (this_tps61310->power_save_2) {
+		FLT_INFO_LOG("%s power save pin_2 exist\n", __func__);
+		gpio_set_value_cansleep(this_tps61310->power_save_2, 0);
+	}
+	else
+		FLT_INFO_LOG("%s no power save pin_2\n", __func__);
 	FLT_INFO_LOG("%s -\n", __func__);
 	return 0;
 

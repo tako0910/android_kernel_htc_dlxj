@@ -238,7 +238,10 @@ static struct vfe32_cmd_type vfe32_cmd[] = {
 		{VFE_CMD_STATS_BF_STOP},
 		{VFE_CMD_STATS_BHIST_START, V32_STATS_BHIST_LEN,
 			V32_STATS_BHIST_OFF},
- {VFE_CMD_STATS_BHIST_STOP},
+		{VFE_CMD_STATS_BHIST_STOP},
+	{VFE_CMD_SET_BAYER_ENABLE},
+		{VFE_CMD_SET_CAMERA_MODE}, 
+		{VFE_CMD_SET_SW_SHARPNESS_CMD},
 };
 
 uint32_t vfe32_AXI_WM_CFG[] = {
@@ -450,14 +453,6 @@ static void vfe32_stop(void)
 
 	msm_io_w_mb(VFE_RESET_UPON_STOP_CMD,
 		vfe32_ctrl->vfebase + VFE_GLOBAL_RESET);
-}
-
-void try_vfe_stop(void)
-{
-	if (atomic_read(&vfe32_ctrl->vstate)) {
-		pr_info("force stop vfe32\n");
-		vfe32_stop();
-	}
 }
 
 static void vfe32_subdev_notify(int id, int path)
@@ -1325,6 +1320,7 @@ static int vfe32_proc_general(
 	uint32_t *cmdp_local = NULL;
 	uint32_t snapshot_cnt = 0;
 	uint32_t temp1 = 0, temp2 = 0;
+	vfe_camera_mode_type vfe_cam_mode = VFE_CAMERA_MODE_DEFAULT; 
 
 	CDBG("vfe32_proc_general: cmdID = %s, length = %d\n",
 		vfe32_general_cmd[cmd->id], cmd->length);
@@ -2585,6 +2581,25 @@ static int vfe32_proc_general(
 		CDBG("%s Stopping liveshot ", __func__);
 		vfe32_stop_liveshot(pmctl);
 		break;
+	
+	case VFE_CMD_SET_CAMERA_MODE:
+		if (copy_from_user(&vfe_cam_mode, (void __user *)(cmd->value),
+				sizeof(vfe_camera_mode_type))) {
+			rc = -EFAULT;
+			goto proc_general_done;
+		}
+		pr_info("%s: cmdID = VFE_CMD_SET_CAMERA_MODE: %d\n", __func__, vfe_cam_mode);
+		vfe32_ctrl->vfe_camera_mode = vfe_cam_mode;
+		break;
+	
+	case VFE_CMD_SET_SW_SHARPNESS_CMD:
+		if (copy_from_user(&temp1, (void __user *)(cmd->value),
+				sizeof(struct stats_htc_af_input))) {
+			rc = -EFAULT;
+			goto proc_general_done;
+		}
+		memcpy(&pmctl->htc_af_info.af_input, &temp1, sizeof(struct stats_htc_af_input));
+		break;
 	default:
 		if (cmd->length != vfe32_cmd[cmd->id].length)
 			return -EINVAL;
@@ -2893,6 +2908,7 @@ static void vfe32_set_default_reg_values(void)
 	msm_io_w(0xFFFFFF, vfe32_ctrl->vfebase + VFE_CLAMP_MAX);
 
 	CDBG("%s: Use bayer stats = %d\n", __func__, vfe32_use_bayer_stats());
+	pr_info("%s vfe_camera_mode=%d\n", __func__, vfe32_ctrl->vfe_camera_mode);
 	if (!vfe32_use_bayer_stats()) {
 		msm_io_w(0x3980007, vfe32_ctrl->vfebase + VFE_BUS_STATS_AEC_BG_UB_CFG);
 		msm_io_w(0x3A00007, vfe32_ctrl->vfebase + VFE_BUS_STATS_AF_BF_UB_CFG);
@@ -2901,12 +2917,26 @@ static void vfe32_set_default_reg_values(void)
 		msm_io_w(0x3C0001F, vfe32_ctrl->vfebase + VFE_BUS_STATS_CS_UB_CFG);
 		msm_io_w(0x3E0001F, vfe32_ctrl->vfebase + VFE_BUS_STATS_HIST_UB_CFG);
 	} else {
-		msm_io_w(0x330001F, vfe32_ctrl->vfebase + VFE_BUS_STATS_HIST_UB_CFG);
-		msm_io_w(0x350004F, vfe32_ctrl->vfebase + VFE_BUS_STATS_AEC_BG_UB_CFG);
-		msm_io_w(0x3A0002F, vfe32_ctrl->vfebase + VFE_BUS_STATS_AF_BF_UB_CFG);
-		msm_io_w(0x3D00007, vfe32_ctrl->vfebase + VFE_BUS_STATS_RS_UB_CFG);
-		msm_io_w(0x3D8001F, vfe32_ctrl->vfebase + VFE_BUS_STATS_CS_UB_CFG);
-		msm_io_w(0x3F80007, vfe32_ctrl->vfebase + VFE_BUS_STATS_SKIN_BHIST_UB_CFG);
+		
+		if (vfe32_ctrl->vfe_camera_mode == VFE_CAMERA_MODE_ZOE || vfe32_ctrl->vfe_camera_mode == VFE_CAMERA_MODE_ZSL) {
+			pr_info("disable RSCS for UB config\n");
+			msm_io_w(0x0, vfe32_ctrl->vfebase + VFE_BUS_STATS_RS_UB_CFG);
+			msm_io_w(0x0, vfe32_ctrl->vfebase + VFE_BUS_STATS_CS_UB_CFG);
+			msm_io_w(0x310001F, vfe32_ctrl->vfebase + VFE_BUS_STATS_HIST_UB_CFG);
+			msm_io_w(0x330007F, vfe32_ctrl->vfebase + VFE_BUS_STATS_AEC_BG_UB_CFG);
+			msm_io_w(0x3B0003F, vfe32_ctrl->vfebase + VFE_BUS_STATS_AF_BF_UB_CFG);
+			msm_io_w(0x3F0000F, vfe32_ctrl->vfebase + VFE_BUS_STATS_SKIN_BHIST_UB_CFG);
+		}
+		else {
+			pr_info("enable RSCS for UB config\n");
+			msm_io_w(0x2E80007, vfe32_ctrl->vfebase + VFE_BUS_STATS_RS_UB_CFG);
+			msm_io_w(0x2F0001F, vfe32_ctrl->vfebase + VFE_BUS_STATS_CS_UB_CFG);
+			msm_io_w(0x310001F, vfe32_ctrl->vfebase + VFE_BUS_STATS_HIST_UB_CFG);
+			msm_io_w(0x330007F, vfe32_ctrl->vfebase + VFE_BUS_STATS_AEC_BG_UB_CFG);
+			msm_io_w(0x3B0003F, vfe32_ctrl->vfebase + VFE_BUS_STATS_AF_BF_UB_CFG);
+			msm_io_w(0x3F0000F, vfe32_ctrl->vfebase + VFE_BUS_STATS_SKIN_BHIST_UB_CFG);
+		}
+		
 	}
 	vfe32_reset_dmi_tables();
 }
@@ -4142,6 +4172,7 @@ int msm_vfe_subdev_init(struct v4l2_subdev *sd,
 {
 	int rc = 0;
 	v4l2_set_subdev_hostdata(sd, mctl);
+	pr_info("%s\n", __func__);
 
 	spin_lock_init(&vfe32_ctrl->stop_flag_lock);
 	spin_lock_init(&vfe32_ctrl->state_lock);
@@ -4163,6 +4194,7 @@ int msm_vfe_subdev_init(struct v4l2_subdev *sd,
 	vfe32_ctrl->update_la = false;
 	vfe32_ctrl->update_gamma = false;
 	vfe32_ctrl->hfr_mode = HFR_MODE_OFF;
+	vfe32_ctrl->vfe_camera_mode = VFE_CAMERA_MODE_DEFAULT;
 
 	return rc;
 }
