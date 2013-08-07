@@ -896,6 +896,15 @@ static struct platform_device mdm_8064_device = {
 
 #ifdef CONFIG_BT
 static struct msm_serial_hs_platform_data msm_uart_dm6_pdata = {
+#ifdef CONFIG_SERIAL_MSM_HS
+	.config_gpio		= 4,
+	.uart_tx_gpio		= BT_UART_TX_XC,
+	.uart_rx_gpio		= BT_UART_RX_XC,
+	.uart_cts_gpio		= BT_UART_CTSz_XC,
+	.uart_rfr_gpio		= BT_UART_RTSz_XC,
+#endif
+
+#ifdef CONFIG_SERIAL_MSM_HS_BRCM
 	.inject_rx_on_wakeup = 0,
 
 	
@@ -4971,23 +4980,17 @@ static void __init deluxe_j_common_init(void)
 #endif
 
 #ifdef CONFIG_BT
-	
-	bt_export_bd_address();
-	msm_uart_dm6_pdata.wakeup_irq = PM8921_GPIO_IRQ(PM8921_IRQ_BASE, BT_HOST_WAKE);
-	msm_device_uart_dm6.name = "msm_serial_hs";
-	msm_device_uart_dm6.dev.platform_data = &msm_uart_dm6_pdata;
+	/* XC or later */
+	if (system_rev >= XC) {
+		bt_export_bd_address();
+		msm_uart_dm6_pdata.wakeup_irq = PM8921_GPIO_IRQ(PM8921_IRQ_BASE, BT_HOST_WAKE_XC);
+#ifdef CONFIG_SERIAL_MSM_HS_BRCM
+		msm_device_uart_dm6.name = "msm_serial_hs_brcm";
+#else
+		msm_device_uart_dm6.name = "msm_serial_hs";
 #endif
-
-	
-#ifdef CONFIG_SMB349_CHARGER
-	if(system_rev < XD)
-		smb349_data.chip_rev = SMB_349;
-	else
-		smb349_data.chip_rev = SMB_340;
-
-	smb349_data.aicl_result_threshold = AICL_RESULT_1600MA;
-	smb349_data.dc_input_max = DC_INPUT_1700MA;
-	smb349_data.aicl_on = AICL_ENABLE;
+		msm_device_uart_dm6.dev.platform_data = &msm_uart_dm6_pdata;
+	}
 #endif
 
 	register_i2c_devices();
