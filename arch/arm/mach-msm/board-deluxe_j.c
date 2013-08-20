@@ -894,10 +894,29 @@ static struct platform_device mdm_8064_device = {
 	.resource	= mdm_resources,
 };
 
+#ifdef CONFIG_BT
+static struct msm_serial_hs_platform_data msm_uart_dm6_pdata = {
+#ifdef CONFIG_SERIAL_MSM_HS
+	.config_gpio		= 4,
+	.uart_tx_gpio		= BT_UART_TX_XC,
+	.uart_rx_gpio		= BT_UART_RX_XC,
+	.uart_cts_gpio		= BT_UART_CTSz_XC,
+	.uart_rfr_gpio		= BT_UART_RTSz_XC,
+#endif
+
+#ifdef CONFIG_SERIAL_MSM_HS_BRCM
+	.inject_rx_on_wakeup = 0,
+
+	
+	.bt_wakeup_pin = PM8921_GPIO_PM_TO_SYS(BT_WAKE),
+	.host_wakeup_pin = PM8921_GPIO_PM_TO_SYS(BT_HOST_WAKE),
+};
+
 static struct platform_device deluxe_j_rfkill = {
 	.name = "deluxe_j_rfkill",
 	.id = -1,
 };
+#endif
 
 static void __init reserve_mdp_memory(void)
 {
@@ -4958,6 +4977,20 @@ static void __init deluxe_j_common_init(void)
 
 #ifdef CONFIG_SERIAL_IRDA
 	deluxe_j_irda_init();
+#endif
+
+#ifdef CONFIG_BT
+	/* XC or later */
+	if (system_rev >= XC) {
+		bt_export_bd_address();
+		msm_uart_dm6_pdata.wakeup_irq = PM8921_GPIO_IRQ(PM8921_IRQ_BASE, BT_HOST_WAKE_XC);
+#ifdef CONFIG_SERIAL_MSM_HS_BRCM
+		msm_device_uart_dm6.name = "msm_serial_hs_brcm";
+#else
+		msm_device_uart_dm6.name = "msm_serial_hs";
+#endif
+		msm_device_uart_dm6.dev.platform_data = &msm_uart_dm6_pdata;
+	}
 #endif
 
 	register_i2c_devices();
