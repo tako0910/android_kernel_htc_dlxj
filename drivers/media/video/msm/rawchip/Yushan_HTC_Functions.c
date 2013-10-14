@@ -502,6 +502,28 @@ int Yushan_sensor_open_init(struct rawchip_sensor_init_data data)
 		p_yushan_regs->dppclib_first_addr = yushan_regs_clib_ov2722.dppclib_first_addr;
 		p_yushan_regs->dopclib_first_addr = yushan_regs_clib_ov2722.dopclib_first_addr;
 	}
+	else if (strcmp(data.sensor_name, "ov5693") == 0) {
+		p_yushan_regs->pdpclib = yushan_regs_clib_ov5693.pdpclib;
+		p_yushan_regs->dppclib = yushan_regs_clib_ov5693.dppclib;
+		p_yushan_regs->dopclib = yushan_regs_clib_ov5693.dopclib;
+		p_yushan_regs->pdpclib_size = yushan_regs_clib_ov5693.pdpclib_size;
+		p_yushan_regs->dppclib_size = yushan_regs_clib_ov5693.dppclib_size;
+		p_yushan_regs->dopclib_size = yushan_regs_clib_ov5693.dopclib_size;
+		p_yushan_regs->pdpclib_first_addr = yushan_regs_clib_ov5693.pdpclib_first_addr;
+		p_yushan_regs->dppclib_first_addr = yushan_regs_clib_ov5693.dppclib_first_addr;
+		p_yushan_regs->dopclib_first_addr = yushan_regs_clib_ov5693.dopclib_first_addr;
+	}
+	else if (strcmp(data.sensor_name, "s5k6a2ya") == 0) {
+		p_yushan_regs->pdpclib = yushan_regs_clib_s5k6a2ya.pdpclib;
+		p_yushan_regs->dppclib = yushan_regs_clib_s5k6a2ya.dppclib;
+		p_yushan_regs->dopclib = yushan_regs_clib_s5k6a2ya.dopclib;
+		p_yushan_regs->pdpclib_size = yushan_regs_clib_s5k6a2ya.pdpclib_size;
+		p_yushan_regs->dppclib_size = yushan_regs_clib_s5k6a2ya.dppclib_size;
+		p_yushan_regs->dopclib_size = yushan_regs_clib_s5k6a2ya.dopclib_size;
+		p_yushan_regs->pdpclib_first_addr = yushan_regs_clib_s5k6a2ya.pdpclib_first_addr;
+		p_yushan_regs->dppclib_first_addr = yushan_regs_clib_s5k6a2ya.dppclib_first_addr;
+		p_yushan_regs->dopclib_first_addr = yushan_regs_clib_s5k6a2ya.dopclib_first_addr;
+	}
 
 	sDxoStruct.pDxoPdpRamImage[0] = (uint8_t *)p_yushan_regs->pdpcode;
 	sDxoStruct.pDxoDppRamImage[0] = (uint8_t *)p_yushan_regs->dppcode;
@@ -673,7 +695,7 @@ int Yushan_sensor_open_init(struct rawchip_sensor_init_data data)
 	    sDxoDopTuning.bNoiseVsDetailsHiGain = 0xB0;
 	    sDxoDopTuning.bSharpness = 0;
 		bDppMode =0;
-		bDopMode =0; 
+		bDopMode =0xd;
 	}
 	else if (strcmp(data.sensor_name, "ov2722") == 0)   
 	{
@@ -684,8 +706,16 @@ int Yushan_sensor_open_init(struct rawchip_sensor_init_data data)
 	    sDxoDopTuning.bNoiseVsDetailsMedGain = 0x80;
 	    sDxoDopTuning.bNoiseVsDetailsHiGain = 0xA8;
 	    sDxoDopTuning.bSharpness = 0;
+#if defined(CONFIG_MACH_MONARUDO) ||\
+    defined(CONFIG_MACH_DELUXE_J) ||\
+    defined(CONFIG_MACH_DELUXE_R) ||\
+    defined(CONFIG_MACH_DUMMY) ||\
+    defined(CONFIG_MACH_DUMMY) ||\
+    defined(CONFIG_MACH_DUMMY) ||\
+    defined(CONFIG_MACH_DUMMY)
 		bDppMode =0; 
-		bDopMode =0xd; 
+#endif
+		bDopMode =0xd;
 	}
 	else
 	{
@@ -698,12 +728,12 @@ int Yushan_sensor_open_init(struct rawchip_sensor_init_data data)
 	gPllLocked = 0;
 	CDBG("[CAM] Yushan_common_init Yushan_Init_Clocks\n");
 	bStatus = Yushan_Init_Clocks(&sInitStruct, &sSystemStatus, udwIntrMask) ;
-	if (bStatus != 1) {
+	if (bStatus != SUCCESS) {
 		pr_err("[CAM] Clock Init FAILED\n");
 		pr_err("[CAM] Yushan_common_init Yushan_Init_Clocks=%d\n", bStatus);
 		pr_err("[CAM] Min Value Required %d\n", sSystemStatus.udwDxoConstraintsMinValue);
 		pr_err("[CAM] Error Code : %d\n", sSystemStatus.bDxoConstraints);
-		
+		return -1;
 	} else
 		CDBG("[CAM] Clock Init Done \n");
 	
@@ -741,11 +771,11 @@ int Yushan_sensor_open_init(struct rawchip_sensor_init_data data)
 		
 		bStatus = Yushan_Init_Dxo(&sDxoStruct, bBypassDxoUpload);
 		CDBG("[CAM] Yushan_common_init Yushan_Init_Dxo=%d\n", bStatus);
-		if (bStatus == 1) {
+		if (bStatus == SUCCESS) {
 			CDBG("[CAM] DXO Upload and Init Done\n");
 		} else {
 			pr_err("[CAM] DXO Upload and Init FAILED\n");
-			
+			return -1;
 		}
 		CDBG("[CAM] Yushan_common_init Yushan_Get_Version_Information\n");
 
@@ -786,21 +816,21 @@ int Yushan_sensor_open_init(struct rawchip_sensor_init_data data)
 
 		
 		
-		bStatus &= Yushan_WaitForInterruptEvent(EVENT_PDP_EOF_EXECCMD, TIME_10MS);
+		bStatus &= Yushan_WaitForInterruptEvent(EVENT_PDP_EOF_EXECCMD, TIME_100MS);
 		if (!bStatus)
 		{
 			pr_err("[CAM] EVENT_PDP_EOF_EXECCMD fail\n");
 			return -1;
 		}
 
-		bStatus &= Yushan_WaitForInterruptEvent2(EVENT_DOP7_EOF_EXECCMD, TIME_10MS);
+		bStatus &= Yushan_WaitForInterruptEvent2(EVENT_DOP7_EOF_EXECCMD, TIME_100MS);
 		if (!bStatus)
 		{
 			pr_err("[CAM] EVENT_DOP7_EOF_EXECCMD fail\n");
 			return -1;
 		}
 
-		bStatus &= Yushan_WaitForInterruptEvent(EVENT_DPP_EOF_EXECCMD, TIME_10MS);
+		bStatus &= Yushan_WaitForInterruptEvent(EVENT_DPP_EOF_EXECCMD, TIME_100MS);
 		if (!bStatus)
 		{
 			pr_err("[CAM] EVENT_DPP_EOF_EXECCMD fail\n");
@@ -846,7 +876,7 @@ bool_t Yushan_Dxo_Dop_Af_Run(Yushan_AF_ROI_t	*sYushanAfRoi, uint32_t *pAfStatsGr
 		bStatus &= Yushan_Update_Commit(bPdpMode,bDppMode,bDopMode);
 
 		
-		bStatus &= Yushan_WaitForInterruptEvent2(EVENT_DXODOP7_NEWFRAMEPROC_ACK, TIME_20MS);
+		bStatus &= Yushan_WaitForInterruptEvent2(EVENT_DXODOP7_NEWFRAMEPROC_ACK, TIME_100MS);
 	}
 	else
 		Yushan_Intr_Enable((uint8_t*)disableIntrMask);
@@ -949,7 +979,7 @@ int Yushan_get_AFSU(rawchip_af_stats* af_stats)
 #endif
 
 
-bool_t	Yushan_ContextUpdate_Wrapper(Yushan_New_Context_Config_t	sYushanNewContextConfig, Yushan_ImageChar_t	sImageNewChar_context)
+int	Yushan_ContextUpdate_Wrapper(Yushan_New_Context_Config_t	sYushanNewContextConfig, Yushan_ImageChar_t	sImageNewChar_context)
 {
 
 	bool_t	bStatus = SUCCESS;
@@ -984,21 +1014,21 @@ bool_t	Yushan_ContextUpdate_Wrapper(Yushan_New_Context_Config_t	sYushanNewContex
 
 	
 	
-	bStatus &= Yushan_WaitForInterruptEvent(EVENT_PDP_EOF_EXECCMD, TIME_10MS);
+	bStatus &= Yushan_WaitForInterruptEvent(EVENT_PDP_EOF_EXECCMD, TIME_100MS);
 	if (!bStatus)
 	{
 		pr_err("[CAM] EVENT_PDP_EOF_EXECCMD fail\n");
 		return -1;
 	}
 
-	bStatus &= Yushan_WaitForInterruptEvent2(EVENT_DOP7_EOF_EXECCMD, TIME_10MS);
+	bStatus &= Yushan_WaitForInterruptEvent2(EVENT_DOP7_EOF_EXECCMD, TIME_100MS);
 	if (!bStatus)
 	{
 		pr_err("[CAM] EVENT_DOP7_EOF_EXECCMD fail\n");
 		return -1;
 	}
 
-	bStatus &= Yushan_WaitForInterruptEvent(EVENT_DPP_EOF_EXECCMD, TIME_10MS);
+	bStatus &= Yushan_WaitForInterruptEvent(EVENT_DPP_EOF_EXECCMD, TIME_100MS);
 	if (!bStatus)
 	{
 		pr_err("[CAM] EVENT_DPP_EOF_EXECCMD fail\n");
@@ -1994,63 +2024,76 @@ void Yushan_dump_Dxo(void)
 	uint32_t	udwSpiBaseIndex;
 	uint8_t target_data;
 	uint32_t udwDxoBaseAddress;
+	int print_data;
 
 	pr_info("[CAM] %s: Start\n", __func__);
 
 	CDBG("[CAM] %s: **** DXO DOP CODE/CLIB CHECK ****\n", __func__);
-	for (i = 0; i < p_yushan_regs->dopcode_size; i++) {
+	for (i = 0, print_data = 0; i < p_yushan_regs->dopcode_size; i++) {
 		YUSHAN_DOP_REGISTER_CHECK(p_yushan_regs->dopcode_first_addr+i);
 		target_data = *((uint8_t *)p_yushan_regs->dopcode+i);
-		if (udwSpiData != target_data)
+		if (udwSpiData != target_data && (print_data <= 10 || print_data % 1000 == 0)) {
 			pr_err("Unmatching DOP code addr=%x data=%x target_data=%x\n",
 				p_yushan_regs->dopcode_first_addr+i, udwSpiData, target_data);
+			print_data++;
+		}
 	}
-	for (i = 0; i < p_yushan_regs->dopclib_size; i++) {
+	for (i = 0, print_data = 0; i < p_yushan_regs->dopclib_size; i++) {
 		YUSHAN_DOP_REGISTER_CHECK(p_yushan_regs->dopclib_first_addr+i);
 		target_data = *((uint8_t *)p_yushan_regs->dopclib+i);
-		if (udwSpiData != target_data)
+		if (udwSpiData != target_data && (print_data <= 10 || print_data % 1000 == 0)) {
 			pr_err("Unmatching DOP clib addr=%x data=%x target_data=%x\n",
 				p_yushan_regs->dopclib_first_addr+i, udwSpiData, target_data);
+			print_data++;
+		}
 	}
 
 	CDBG("[CAM] %s: **** DXO DPP CODE/CLIB CHECK ****\n", __func__);
 	udwSpiBaseIndex = 0x010000;
 	SPI_Write(YUSHAN_HOST_IF_SPI_BASE_ADDRESS, 4, (uint8_t *)(&udwSpiBaseIndex));
 	udwDxoBaseAddress=(0x8000 + DXO_DPP_BASE_ADDR) - udwSpiBaseIndex; 
-	for (i = 0; i < p_yushan_regs->dppcode_size; i++) {
+	for (i = 0, print_data = 0; i < p_yushan_regs->dppcode_size; i++) {
 		YUSHAN_DPP_REGISTER_CHECK(p_yushan_regs->dppcode_first_addr+udwDxoBaseAddress+i-DXO_DPP_BASE_ADDR+0x8000);
 		target_data = *((uint8_t *)p_yushan_regs->dppcode+i);
-		if (udwSpiData != target_data)
+		if (udwSpiData != target_data && (print_data <= 10 || print_data % 1000 == 0)) {
 			pr_err("Unmatching DPP code addr=%x data=%x target_data=%x\n",
 				p_yushan_regs->dppcode_first_addr+i, udwSpiData, target_data);
+			print_data++;
+		}
 	}
 	udwSpiBaseIndex = DXO_DPP_BASE_ADDR + p_yushan_regs->dppclib_first_addr; 
 	SPI_Write(YUSHAN_HOST_IF_SPI_BASE_ADDRESS, 4, (uint8_t *)(&udwSpiBaseIndex));
 	udwDxoBaseAddress = ((DXO_DPP_BASE_ADDR + p_yushan_regs->dppclib_first_addr) - udwSpiBaseIndex) + 0x8000; 
-	for (i = 0; i < p_yushan_regs->dppclib_size; i++) {
+	for (i = 0, print_data = 0; i < p_yushan_regs->dppclib_size; i++) {
 		YUSHAN_DPP_REGISTER_CHECK(udwDxoBaseAddress+i-DXO_DPP_BASE_ADDR+0x8000);
 		target_data = *((uint8_t *)p_yushan_regs->dppclib+i);
-		if (udwSpiData != target_data)
+		if (udwSpiData != target_data && (print_data <= 10 || print_data % 1000 == 0)) {
 			pr_err("Unmatching DPP clib addr=%x data=%x target_data=%x\n",
 				p_yushan_regs->dppclib_first_addr+i, udwSpiData, target_data);
+			print_data++;
+		}
 	}
 	udwSpiBaseIndex = 0x08000;
 	SPI_Write(YUSHAN_HOST_IF_SPI_BASE_ADDRESS, 4, (uint8_t *)(&udwSpiBaseIndex));
 
 	CDBG("[CAM] %s: **** DXO PDP CODE/CLIB CHECK ****\n", __func__);
-	for (i = 0; i < p_yushan_regs->pdpcode_size; i++) {
+	for (i = 0, print_data = 0; i < p_yushan_regs->pdpcode_size; i++) {
 		YUSHAN_PDP_REGISTER_CHECK(p_yushan_regs->pdpcode_first_addr+i);
 		target_data = *((uint8_t *)p_yushan_regs->pdpcode+i);
-		if (udwSpiData != target_data)
+		if (udwSpiData != target_data && (print_data <= 10 || print_data % 1000 == 0)) {
 			pr_err("Unmatching PDP code addr=%x data=%x target_data=%x\n",
 				p_yushan_regs->pdpcode_first_addr+i, udwSpiData, target_data);
+			print_data++;
+		}
 	}
-	for (i = 0; i < p_yushan_regs->pdpclib_size; i++) {
+	for (i = 0, print_data = 0; i < p_yushan_regs->pdpclib_size; i++) {
 		YUSHAN_PDP_REGISTER_CHECK(p_yushan_regs->pdpclib_first_addr+i);
 		target_data = *((uint8_t *)p_yushan_regs->pdpclib+i);
-		if (udwSpiData != target_data)
+		if (udwSpiData != target_data && (print_data <= 10 || print_data % 1000 == 0)) {
 			pr_err("Unmatching PDP clib addr=%x data=%x target_data=%x\n",
 				p_yushan_regs->pdpclib_first_addr+i, udwSpiData, target_data);
+			print_data++;
+		}
 	}
 
 	pr_info("[CAM] %s: End\n", __func__);

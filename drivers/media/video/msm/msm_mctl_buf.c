@@ -28,8 +28,6 @@
 #include "msm.h"
 #include "msm_ispif.h"
 
-#include "swfv/swfa_k.h"
-
 #ifdef CONFIG_MSM_CAMERA_DEBUG
 #define D(fmt, args...) pr_debug("msm_mctl_buf: " fmt, ##args)
 #else
@@ -37,31 +35,31 @@
 #endif
 
 static int msm_vb2_ops_queue_setup(struct vb2_queue *vq,
-                                        unsigned int *num_buffers,
-                                        unsigned int *num_planes,
-                                        unsigned long sizes[],
-                                        void *alloc_ctxs[])
+					unsigned int *num_buffers,
+					unsigned int *num_planes,
+					unsigned long sizes[],
+					void *alloc_ctxs[])
 {
-        /* get the video device */
-        struct msm_cam_v4l2_dev_inst *pcam_inst = vb2_get_drv_priv(vq);
-        struct msm_cam_v4l2_device *pcam = pcam_inst->pcam;
-        int i;
+	
+	struct msm_cam_v4l2_dev_inst *pcam_inst = vb2_get_drv_priv(vq);
+	struct msm_cam_v4l2_device *pcam = pcam_inst->pcam;
+	int i;
 
-        D("%s\n", __func__);
-        if (!pcam || !(*num_buffers)) {
-                pr_err("%s error : invalid input\n", __func__);
-                return -EINVAL;
-        }
+	D("%s\n", __func__);
+	if (!pcam || !(*num_buffers)) {
+		pr_err("%s error : invalid input\n", __func__);
+		return -EINVAL;
+	}
 
-        *num_planes = pcam_inst->plane_info.num_planes;
-        for (i = 0; i < pcam_inst->vid_fmt.fmt.pix_mp.num_planes; i++) {
-                sizes[i] = PAGE_ALIGN(pcam_inst->plane_info.plane[i].size);
-                D("%s Inst %p : Plane %d Offset = %d Size = %ld"
-                        "Aligned Size = %ld", __func__, pcam_inst, i,
-                        pcam_inst->plane_info.plane[i].offset,
-                        pcam_inst->plane_info.plane[i].size, sizes[i]);
-        }
-        return 0;
+	*num_planes = pcam_inst->plane_info.num_planes;
+	for (i = 0; i < pcam_inst->vid_fmt.fmt.pix_mp.num_planes; i++) {
+		sizes[i] = PAGE_ALIGN(pcam_inst->plane_info.plane[i].size);
+		D("%s Inst %p : Plane %d Offset = %d Size = %ld"
+			"Aligned Size = %ld", __func__, pcam_inst, i,
+			pcam_inst->plane_info.plane[i].offset,
+			pcam_inst->plane_info.plane[i].size, sizes[i]);
+	}
+	return 0;
 }
 
 static void msm_vb2_ops_wait_prepare(struct vb2_queue *q)
@@ -152,7 +150,7 @@ static int msm_vb2_ops_buf_prepare(struct vb2_buffer *vb)
 	struct msm_cam_v4l2_dev_inst *pcam_inst;
 	struct msm_cam_v4l2_device *pcam;
 	struct msm_frame_buffer *buf;
-	struct vb2_queue *vq;
+	struct vb2_queue	*vq = NULL;
 
 	D("%s\n", __func__);
 	if (!vb) {
@@ -279,7 +277,7 @@ static void msm_vb2_ops_buf_cleanup(struct vb2_buffer *vb)
 
 static int msm_vb2_ops_start_streaming(struct vb2_queue *q)
 {
-        return 0;
+	return 0;
 }
 
 static int msm_vb2_ops_stop_streaming(struct vb2_queue *q)
@@ -418,30 +416,31 @@ struct msm_frame_buffer *msm_mctl_buf_find(
 }
 
 int msm_mctl_buf_done_proc(
-                struct msm_cam_media_controller *pmctl,
-                struct msm_cam_v4l2_dev_inst *pcam_inst,
-                int image_mode, struct msm_free_buf *fbuf,
-                uint32_t *frame_id, int gen_timestamp)
+		struct msm_cam_media_controller *pmctl,
+		struct msm_cam_v4l2_dev_inst *pcam_inst,
+		int image_mode, struct msm_free_buf *fbuf,
+		uint32_t *frame_id, int gen_timestamp)
 {
-        struct msm_frame_buffer *buf = NULL;
-        int del_buf = 1;
+	struct msm_frame_buffer *buf = NULL;
+	int del_buf = 1;
 
-        buf = msm_mctl_buf_find(pmctl, pcam_inst, del_buf,
-                                        image_mode, fbuf);
-        if (!buf) {
-                pr_err("%s: buf=0x%x not found\n",
-                        __func__, fbuf->ch_paddr[0]);
-                return -EINVAL;
-        }
-        if (gen_timestamp) {
-                if (frame_id)
-                        buf->vidbuf.v4l2_buf.sequence = *frame_id;
-                msm_mctl_gettimeofday(
-                        &buf->vidbuf.v4l2_buf.timestamp);
-        }
-        vb2_buffer_done(&buf->vidbuf, VB2_BUF_STATE_DONE);
-        return 0;
+	buf = msm_mctl_buf_find(pmctl, pcam_inst, del_buf,
+					image_mode, fbuf);
+	if (!buf) {
+		pr_err("%s: buf=0x%x not found\n",
+			__func__, fbuf->ch_paddr[0]);
+		return -EINVAL;
+	}
+	if (gen_timestamp) {
+		if (frame_id)
+			buf->vidbuf.v4l2_buf.sequence = *frame_id;
+		msm_mctl_gettimeofday(
+			&buf->vidbuf.v4l2_buf.timestamp);
+	}
+	vb2_buffer_done(&buf->vidbuf, VB2_BUF_STATE_DONE);
+	return 0;
 }
+
 
 int msm_mctl_buf_done(struct msm_cam_media_controller *p_mctl,
 			int image_mode, struct msm_free_buf *fbuf,
@@ -666,8 +665,8 @@ int msm_mctl_reserve_free_buf(
 		++pcam_inst->no_free_buf_cnt;
 		if (pcam_inst->no_free_buf_cnt < 50 ||
 			pcam_inst->no_free_buf_cnt % 5 == 0)
-			pr_info("%s: No free buffer available: image_mode=%d inst = 0x%p, cnt %d\n",
-				__func__, image_mode, pcam_inst, pcam_inst->no_free_buf_cnt);
+			pr_info("%s: No free buffer available: inst = 0x%p, cnt %d\n",
+				__func__, pcam_inst, pcam_inst->no_free_buf_cnt);
 	}
 	spin_unlock_irqrestore(&pcam_inst->vq_irqlock, flags);
 	return rc;

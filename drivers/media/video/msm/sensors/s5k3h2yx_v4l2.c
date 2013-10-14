@@ -339,6 +339,7 @@ static struct msm_camera_i2c_reg_conf s5k3h2yx_snap_settings[] = {
 	{0x0383, 0x01},
 	{0x0385, 0x01},
 	{0x0387, 0x01},
+	{0x0105, 0x01}, 
 	{0x0401, 0x00},
 	{0x0405, 0x10},
 	{0x0700, 0x05},
@@ -381,6 +382,7 @@ static struct msm_camera_i2c_reg_conf s5k3h2yx_snap_wide_settings[] = {
 	{0x0385, 0x01},	
 	{0x0387, 0x01},	
 
+	{0x0105, 0x01}, 
 	{0x0401, 0x00},	
 	{0x0405, 0x10},
 	{0x0700, 0x05},	
@@ -736,6 +738,26 @@ static struct msm_sensor_output_info_t s5k3h2yx_dimensions[] = {
 	},
 };
 
+#ifdef CONFIG_ARCH_MSM8X60
+
+static struct msm_camera_csi_params s5k3h2yx_csi_params = {
+	.data_format = CSI_RAW10,
+	.lane_cnt    = 2,
+	.lane_assign = 0xe4,
+	.dpcm_scheme = 0,
+	.settle_cnt  = 0x2a,
+};
+
+static struct msm_camera_csi_params *s5k3h2yx_csi_params_array[] = {
+	&s5k3h2yx_csi_params,
+	&s5k3h2yx_csi_params,
+	&s5k3h2yx_csi_params,
+	&s5k3h2yx_csi_params,
+	&s5k3h2yx_csi_params,
+	&s5k3h2yx_csi_params,
+};
+
+#else  
 static struct msm_camera_csid_vc_cfg s5k3h2yx_cid_cfg[] = {
 	{0, CSI_RAW10, CSI_DECODE_10BIT},
 	{1, CSI_EMBED_DATA, CSI_DECODE_8BIT},
@@ -764,6 +786,7 @@ static struct msm_camera_csi2_params *s5k3h2yx_csi_params_array[] = {
 	&s5k3h2yx_csi_params,
 	&s5k3h2yx_csi_params
 };
+#endif 
 
 static struct msm_sensor_output_reg_addr_t s5k3h2yx_reg_addr = {
 	.x_output = 0x34C,
@@ -1455,7 +1478,11 @@ static struct msm_sensor_fn_t s5k3h2yx_func_tbl = {
 	.sensor_set_fps = msm_sensor_set_fps,
 	.sensor_write_exp_gain_ex = msm_sensor_write_exp_gain1_ex,
 	.sensor_write_snapshot_exp_gain_ex = msm_sensor_write_exp_gain1_ex,
+#ifdef CONFIG_ARCH_MSM8X60
+	.sensor_setting = msm_sensor_setting1,
+#else
 	.sensor_setting = msm_sensor_setting,
+#endif
 	.sensor_set_sensor_mode = msm_sensor_set_sensor_mode,
 	.sensor_mode_init = msm_sensor_mode_init,
 	.sensor_get_output_info = msm_sensor_get_output_info,
@@ -1491,7 +1518,11 @@ static struct msm_sensor_ctrl_t s5k3h2yx_s_ctrl = {
 	.sensor_id_info = &s5k3h2yx_id_info,
 	.sensor_exp_gain_info = &s5k3h2yx_exp_gain_info,
 	.cam_mode = MSM_SENSOR_MODE_INVALID,
+#ifdef CONFIG_ARCH_MSM8X60
+	.csic_params = &s5k3h2yx_csi_params_array[0],
+#else
 	.csi_params = &s5k3h2yx_csi_params_array[0],
+#endif
 	.msm_sensor_mutex = &s5k3h2yx_mut,
 	.sensor_i2c_driver = &s5k3h2yx_i2c_driver,
 	.sensor_v4l2_subdev_info = s5k3h2yx_subdev_info,

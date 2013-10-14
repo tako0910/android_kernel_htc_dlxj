@@ -23,12 +23,11 @@ struct csid_device {
 	struct resource *mem;
 	struct resource *irq;
 	struct resource *io;
+	struct regulator *csi_vdd;
 	void __iomem *base;
 	struct mutex mutex;
-	uint32_t hw_version;
-
-	struct regulator *csi_vdd;
 	struct completion reset_complete;
+	uint32_t hw_version;
 
 	struct clk *csid_clk[5];
 };

@@ -194,7 +194,7 @@ struct camera_flash_cfg {
 	uint16_t low_cap_limit;
 	uint16_t low_cap_limit_dual;
 	uint8_t postpone_led_mode;
-	struct camera_flash_info *flash_info;
+	struct camera_flash_info *flash_info;	
 };
 
 struct msm_camera_sensor_strobe_flash_data {
@@ -340,39 +340,14 @@ struct msm_actuator_info {
 	int bus_id;
 	int vcm_pwd;
 	int vcm_enable;
-
+	
 	int use_rawchip_af;
-
-
-	int otp_diviation;
-
-
-	void (*vcm_wa_vreg_on) (void);
-	void (*vcm_wa_vreg_off) (void);
-
-
-	void (*oisbinder_i2c_add_driver) (void* i2c_client);
-	void (*oisbinder_open_init) (void);
-	void (*oisbinder_power_down) (void);
-	int32_t (*oisbinder_act_set_ois_mode) (int ois_mode);
-	int32_t (*oisbinder_mappingTbl_i2c_write) (int startup_mode, void * sensor_actuator_info);
-
+	
 };
 
 struct msm_eeprom_info {
 	struct i2c_board_info const *board_info;
 	int bus_id;
-};
-
-enum htc_camera_image_type_board {
-        HTC_CAMERA_IMAGE_NONE_BOARD,
-        HTC_CAMERA_IMAGE_YUSHANII_BOARD,
-        HTC_CAMERA_IMAGE_MAX_BOARD,
-};
-
-enum cam_vcm_onoff_type {
-       STATUS_OFF,
-       STATUS_ON,
 };
 
 struct msm_camera_sensor_info {
@@ -396,30 +371,27 @@ struct msm_camera_sensor_info {
 	enum msm_camera_type camera_type;
 	enum msm_sensor_type sensor_type;
 
-        uint16_t num_actuator_info_table;
+    uint16_t num_actuator_info_table;
 	struct msm_actuator_info **actuator_info_table;
 
 	struct msm_actuator_info *actuator_info;
 	int pmic_gpio_enable;
 
+	
 	struct msm_camera_gpio_conf *gpio_conf;
 	int (*camera_power_on)(void);
 	int (*camera_power_off)(void);
-	void (*camera_yushanii_probed)(enum htc_camera_image_type_board);
-	enum htc_camera_image_type_board htc_image;
 	int use_rawchip;
-	int hdr_mode;
-	int video_hdr_capability;
-#if 1
-
+#if 1 
+	
 	void(*camera_clk_switch)(void);
-	int power_down_disable;
-	int full_size_preview;
-	int cam_select_pin;
-	int mirror_mode;
-	int(*camera_pm8058_power)(int);
+	int power_down_disable; 
+	int full_size_preview; 
+	int cam_select_pin; 
+	int mirror_mode; 
+	int(*camera_pm8058_power)(int); 
 	struct camera_flash_cfg* flash_cfg;
-	int gpio_set_value_force;
+	int gpio_set_value_force; 
 	int dev_node;
 	int camera_platform;
 	uint8_t led_high_enabled;
@@ -427,8 +399,7 @@ struct msm_camera_sensor_info {
 	uint32_t kpi_sensor_end;
 	uint8_t (*preview_skip_frame)(void);
 #endif
-
-	int sensor_cut;
+	
 
 };
 
