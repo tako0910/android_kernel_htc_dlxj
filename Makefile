@@ -195,7 +195,8 @@ export KBUILD_BUILDHOST := $(SUBARCH)
 ARCH		?= $(SUBARCH)
 CROSS_COMPILE	?= $(CONFIG_CROSS_COMPILE:"%"=%)
 ARCH		:= arm
-CROSS_COMPILE	:= arm-eabi-
+#CROSS_COMPILE	:= arm-eabi-
+CROSS_COMPILE   := /home/tako/Android4/gcc-linaro-arm-linux-gnueabihf-4.8-2013.09_linux/bin/arm-linux-gnueabihf-
 
 # Architecture as present in compile.h
 UTS_MACHINE 	:= $(ARCH)
